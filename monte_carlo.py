@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 
+import talib
+
 #삼성데이터 
 #train 데이터 (2016~2020.12)
 train = fdr.DataReader(symbol='005930', start='2015', end='2021')
@@ -50,6 +52,31 @@ earning_rate_mean = train_log.mean() -0.5*((train_log.mean())*(train_log.mean())
 train["rtn"] = earning_rate_mean + roc*train["r_n"]
 
 plt.plot((100*np.exp(train["rtn"]/100))[:300])
+
+#새로 생성한 종가 데이터
+data = (100*np.exp(train["rtn"]/100))
+
+train["new_data"] = data
+
+###라벨링(수정필요)
+for i in train:
+    i['diff']=train[i].diff().shift(-1).fillna(0)
+    i['Label'] = None
+    
+for i in df:
+    for e in range(len(i['diff'])):    
+        if i['diff'][e] > 0:
+            i['Label'][e] = '1'
+        elif i['diff'][e]==0:
+            i['Label'][e] ='0'
+        else:        
+            i['Label'][e] = '0'
+            
+
+
+#기술지표들
+real = talib.CMO(a, timeperiod=20)
+
 
 # 5) eager execution 기능 끄기
 tf.compat.v1.disable_eager_execution()
