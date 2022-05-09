@@ -223,8 +223,59 @@ test_data = test_data.reset_index(drop=True)
 
 
 #train /test 라벨 나누기
+X_train = train_data.drop(["label"], axis = 1 ) #학습데이터
+y_train = train_data["label"] #정답라벨
+X_test = test_data.drop(['label'], axis=1) #test데이터
+y_test = test_data["label"]
 
 
+##로지스틱 회귀분석
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import confusion_matrix
+
+model = LogisticRegression()
+model.fit(X_train, y_train)
+
+
+print(model.score(X_train, y_train))
+
+y_pred = model.predict(X_test)
+
+accuracy_score(y_pred, y_test) #0.5121951219512195
+
+
+confusion_matrix(y_pred, y_test)
+
+##나이브 베이즈
+from sklearn.naive_bayes import GaussianNB
+nb = GaussianNB()
+
+y_pred = nb.fit(X_train, y_train).predict(X_test)
+
+print("Number of mislabeled points out of a total %d proints : %d" % (X_test.shape[0], (y_test != y_pred).sum()))
+
+(246-109)/246
+
+#KNN
+from sklearn.neighbors import KNeighborsClassifier
+classifier = KNeighborsClassifier(n_neighbors = 5)
+
+classifier.fit(X_train, y_train)
+
+y_pred = classifier.predict(X_test)
+
+accuracy_score(y_pred, y_test) #0.5203252032520326
+
+#RF
+from sklearn.ensemble import RandomForestClassifier
+# instantiate the classifier 
+rfc = RandomForestClassifier(random_state=0)
+rfc.fit(X_train, y_train)
+y_pred = rfc.predict(X_test)
+
+accuracy_score(y_pred, y_test) #0.532520325203252
 
 
 #명석 모델
@@ -242,7 +293,7 @@ y_test = test_data["label"]
 
 xgb1 = XGBClassifier()
 parameters = {'nthread':[4], #when use hyperthread, xgboost may become slower
-              'objective':['reg:linear'],
+              'objective':['binary:logistic'],
               'learning_rate': [.03, 0.05, .07], #so called `eta` value
               'max_depth': [3, 4, 5],
               'min_child_weight': [4],
@@ -267,10 +318,7 @@ print(xgb_grid.best_params_)
 
 
 
-
-
-
 #prediction
-pred = xgb_grid.predict(X_test)
+y_pred = xgb_grid.predict(X_test)
 
-
+accuracy_score(y_pred, y_test) #0.540650406504065
