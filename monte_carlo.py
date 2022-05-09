@@ -17,7 +17,9 @@ train = train[220:]
 
 
 #test 데이터 (2021.1~12)
-test = fdr.DataReader(symbol='005930', start='2021', end='2022')
+test = fdr.DataReader(symbol='005930', start='2020', end='2022')
+
+test = test[150:]
 
 
 #로그 수익률 생성 함수(input 값: dataframe)
@@ -55,10 +57,7 @@ def new_data(train):
     data = (100*np.exp(rtn/100))
     
     
-    return data
-
-#데이터 생성    
-data = new_data(train)    
+    return data    
 
 
 #라벨링 리스트 생성 함수(input : (data, 만들 행 갯수))
@@ -79,30 +78,40 @@ def label_list(data, num):
     return label_shift_list
 
 
-a = label_list(data, 299)
-len(a)
-
-#기술지표 생성함수(input : (data, label,  만들 행 갯수,time(25)))
-def tal(data, label, num, time):
+#기술지표 생성함수(input : (data,  만들 행 갯수,time(25)))
+def tal(data, num, time):
+    label = label_list(data, num)
         
     #기술지표들
-    train_cmo = talib.CMO(data[:num], timeperiod=time)
+    train_apo = talib.APO(data[:num])
+    train_cmo = talib.CMO(data[:num])
+    train_macd , train_macdsignal , train_macdhist = talib.MACD(data[:num])
+    train_mom = talib.MOM(data[:num])
     train_ppo = talib.PPO(data[:num])
     train_roc = talib.ROC(data[:num])
+    train_rocp = talib.ROCP(data[:num])
+    train_rocr = talib.ROCR(data[:num])
+    train_rocr100 = talib.ROCR100(data[:num])
     train_rsi = talib.RSI(data[:num])
-    
-    train_cmo = train_cmo.reset_index(drop=True)
-    train_ppo = train_ppo.reset_index(drop=True)
-    train_roc = train_roc.reset_index(drop=True)
-    train_rsi = train_rsi.reset_index(drop=True)
-    
+    train_fasrk, train_fasrd = talib.STOCHRSI(data[:num])
+    train_trix = talib.TRIX(data[:num])
 
-
-    data = {'CMO' : train_cmo[timeperiod:],
-            'PPO' : train_ppo[timeperiod:],
-            'ROC' : train_roc[timeperiod:],
-            'RSI' : train_rsi[timeperiod:],
-            'label' : label[timeperiod:]}
+    data = {'APO' : train_cmo[time:],
+            'CMO' : train_cmo[time:],
+            'MACD' : train_macd[time:],
+            'MACDSIGNAL' : train_macdsignal[time:],
+            'MACDHIST' : train_macdhist[time:],
+            'MOM' : train_mom[time:],
+            'PPO' : train_ppo[time:],
+            'ROC' : train_roc[time:],
+            'ROCP' : train_rocp[time:],
+            'ROCR' : train_rocr[time:],
+            'ROCR100' : train_rocr100[time:],
+            'RSI' : train_rsi[time:],
+            'FASRK' : train_fasrk[time:],
+            'FASRD' : train_fasrd[time:],
+            'TRIX' : train_trix[time:],
+            'label' : label[time:]}
     
     #train_data 생성(종가 제외)
     train_data = pd.DataFrame(data)
@@ -111,37 +120,157 @@ def tal(data, label, num, time):
     return train_data
 
 
-b = tal(data,a, 299, 25)
+num =275
 
-timeperiod = 25
+data = new_data(train)
 
-# 5) eager execution 기능 끄기
-tf.compat.v1.disable_eager_execution()
+train_apo = talib.APO(data[:num])
+train_cmo = talib.CMO(data[:num])
+train_macd , train_macdsignal , train_macdhist = talib.MACD(data[:num])
+train_mom = talib.MOM(data[:num])
+train_ppo = talib.PPO(data[:num])
+train_roc = talib.ROC(data[:num])
+train_rocp = talib.ROCP(data[:num])
+train_rocr = talib.ROCR(data[:num])
+train_rocr100 = talib.ROCR100(data[:num])
+train_rsi = talib.RSI(data[:num])
+train_stochrsi = talib.STOCHRSI(data[:num])
+train_trix = talib.TRIX(data[:num])
 
-# 실제 데이터 준비
-real_data = np.random.normal(size=1000)
-real_data = real_data.reshape(real_data.shape[0], 1)
 
-# 가짜 데이터 생성
-def makeZ(m, n):
-    z = np.random.uniform(-1.0, 1.0, size=[m, n])
-    return z
 
-# 모델 파라미터 설정
-d_input = real_data.shape[1]
-d_hidden = 32
-d_output = 1 # 주의
-g_input = 16
-g_hidden = 32
-g_output = d_input # 주의
+#데이터 생성(랜덤 남수)    
+data = new_data(train)   
+data1 = new_data(train)   
 
-def build_GAN(discriminator, generator):
-    discriminator.trainable = False # discriminator 업데이트 해제
-    z = Input(batch_shape=(None, g_input))
-    Gz = generator(z)
-    DGz = discriminator(Gz)
-    
-    gan_model = Model(z, DGz)
-    gan_model.compile(loss='binary_crossentropy', optimizer=myOptimizer(0.0005))
-    
-    return gan_model
+#학습 데이터 생성
+b = tal(data, 338, 88)
+b1 = tal(data1, 275, 25)
+
+
+#train 데이터 생성 (20개)
+train_data = pd.DataFrame()
+
+for i in range(20):
+    data = new_data(train)
+    df = tal(data, 338, 88)
+    train_data = pd.concat([train_data, df])
+     
+train_data = train_data.reset_index(drop=True)   
+
+#test 데이터 생성
+test_df = test["Close"].diff().shift(-1)
+test_df = test_df.dropna()
+
+test_df = test_df[99:]
+
+
+test_df_list = []
+
+for i in range(len(test_df)):
+    if test_df[i] > 0 :
+        test_df_list.append(1)
+    else:
+        test_df_list.append(0)
+
+
+len(test_df_list)
+
+
+time = 99
+
+test_apo = talib.APO(test['Close'])
+test_cmo = talib.CMO(test['Close'])
+test_macd , test_macdsignal , test_macdhist = talib.MACD(test['Close'])
+test_mom = talib.MOM(test['Close'])
+test_ppo = talib.PPO(test['Close'])
+test_roc = talib.ROC(test['Close'])
+test_rocp = talib.ROCP(test['Close'])
+test_rocr = talib.ROCR(test['Close'])
+test_rocr100 = talib.ROCR100(test['Close'])
+test_rsi = talib.RSI(test['Close'])
+test_fasrk, test_fasrd = talib.STOCHRSI(test["Close"])
+test_trix = talib.TRIX(test['Close'])
+
+
+len(test_df)
+len(test_trix[99:-1])
+
+
+data = {'APO' : test_cmo[time:-1],
+        'CMO' : test_cmo[time:-1],
+        'MACD' : test_macd[time:-1],
+        'MACDSIGNAL' : test_macdsignal[time:-1],
+        'MACDHIST' : test_macdhist[time:-1],
+        'MOM' : test_mom[time:-1],
+        'PPO' : test_ppo[time:-1],
+        'ROC' : test_roc[time:-1],
+        'ROCP' : test_rocp[time:-1],
+        'ROCR' : test_rocr[time:-1],
+        'ROCR100' : test_rocr100[time:-1],
+        'RSI' : test_rsi[time:-1],
+        'FASRK' : test_fasrk[time:-1],
+        'FASRD' : test_fasrd[time:-1],
+        'TRIX' : test_trix[time:-1],
+        'label' : test_df_list
+        }
+
+#test_data 생성(종가 제외)
+test_data = pd.DataFrame(data)
+test_data = test_data.reset_index(drop=True)
+
+
+
+
+#train /test 라벨 나누기
+
+
+
+
+#명석 모델
+from sklearn import preprocessing
+import xgboost as xgb
+from xgboost import XGBClassifier
+import datetime
+from sklearn.model_selection import GridSearchCV
+
+
+X_train = train_data.drop(["label"], axis = 1 ) #학습데이터
+y_train = train_data["label"] #정답라벨
+X_test = test_data.drop(['label'], axis=1) #test데이터
+y_test = test_data["label"]
+
+xgb1 = XGBClassifier()
+parameters = {'nthread':[4], #when use hyperthread, xgboost may become slower
+              'objective':['reg:linear'],
+              'learning_rate': [.03, 0.05, .07], #so called `eta` value
+              'max_depth': [3, 4, 5],
+              'min_child_weight': [4],
+              'silent': [1],
+              'subsample': [0.7],
+              'colsample_bytree': [0.7],
+              'n_estimators': [500],
+              "random_state" : [25]}
+
+xgb_grid = GridSearchCV(xgb1,
+                        parameters,
+                        cv = 2,
+                        n_jobs = 5, 
+                        verbose=True)
+
+xgb_grid.fit(X_train,
+         y_train)
+
+
+print(xgb_grid.best_score_)
+print(xgb_grid.best_params_)
+
+
+
+
+
+
+#prediction
+pred = xgb_grid.predict(X_test)
+
+
