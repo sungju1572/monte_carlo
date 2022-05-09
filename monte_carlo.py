@@ -5,6 +5,8 @@ import math
 import pandas as pd
 import talib
 
+
+
 #삼성데이터 
 #train 데이터 (2016~2020.12)
 train = fdr.DataReader(symbol='005930', start='2015', end='2021')
@@ -80,50 +82,38 @@ def label_list(data, num):
 a = label_list(data, 299)
 len(a)
 
+#기술지표 생성함수(input : (data, label,  만들 행 갯수,time(25)))
+def tal(data, label, num, time):
+        
+    #기술지표들
+    train_cmo = talib.CMO(data[:num], timeperiod=time)
+    train_ppo = talib.PPO(data[:num])
+    train_roc = talib.ROC(data[:num])
+    train_rsi = talib.RSI(data[:num])
+    
+    train_cmo = train_cmo.reset_index(drop=True)
+    train_ppo = train_ppo.reset_index(drop=True)
+    train_roc = train_roc.reset_index(drop=True)
+    train_rsi = train_rsi.reset_index(drop=True)
+    
 
 
-#기술지표들
-real = talib.CMO(a, timeperiod=20)
-
-plt.plot(talib.CMO(test["Close"], timeperiod=20))
-plt.plot(talib.CMO(train['new_data'][:300], timeperiod=20))
-
-plt.plot(talib.PPO(test["Close"]))
-plt.plot(talib.PPO(train['new_data'][:300]))
-
-plt.plot(talib.ROC(test["Close"]))
-plt.plot(talib.ROC(train['new_data'][:300]))
-
-plt.plot(talib.RSI(test["Close"]))
-plt.plot(talib.RSI(train['new_data'][:300]))
-
-train_cmo = talib.CMO(data[:299], timeperiod=25)
-train_ppo = talib.PPO(data[:299])
-train_roc = talib.ROC(data[:299])
-train_rsi = talib.RSI(data[:299])
-
-train_cmo = train_cmo.reset_index(drop=True)
-train_ppo = train_ppo.reset_index(drop=True)
-train_roc = train_roc.reset_index(drop=True)
-train_rsi = train_rsi.reset_index(drop=True)
+    data = {'CMO' : train_cmo[timeperiod:],
+            'PPO' : train_ppo[timeperiod:],
+            'ROC' : train_roc[timeperiod:],
+            'RSI' : train_rsi[timeperiod:],
+            'label' : label[timeperiod:]}
+    
+    #train_data 생성(종가 제외)
+    train_data = pd.DataFrame(data)
+    train_data = train_data.reset_index(drop=True)
+    
+    return train_data
 
 
+b = tal(data,a, 299, 25)
 
-len(train_cmo)
-len(label_shift_list)
-
-data = {'CMO' : train_cmo[25:],
-        'PPO' : train_ppo[25:],
-        'ROC' : train_roc[25:],
-        'RSI' : train_rsi[25:],
-        'label' : label_shift_list[25:]}
-
-#train_data 생성(종가 제외)
-train_data = pd.DataFrame(data)
-train_data = train_data.reset_index(drop=True)
-
-
-
+timeperiod = 25
 
 # 5) eager execution 기능 끄기
 tf.compat.v1.disable_eager_execution()
