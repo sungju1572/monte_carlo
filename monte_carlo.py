@@ -9,7 +9,7 @@ import talib
 
 #삼성데이터 
 #train 데이터 (2016~2020.12)
-train = fdr.DataReader(symbol='005930', start='2015', end='2021')
+train = fdr.DataReader(symbol='000660', start='2015', end='2021')
 
 #모멘텀지수 사용해야 하므로 이전데이터 몇개 추가(2015년 데이터)
 train = train[220:]
@@ -17,7 +17,7 @@ train = train[220:]
 
 
 #test 데이터 (2021.1~12)
-test = fdr.DataReader(symbol='005930', start='2020', end='2022')
+test = fdr.DataReader(symbol='000660', start='2020', end='2022')
 
 test = test[150:]
 
@@ -48,7 +48,7 @@ def new_data(train):
     roc = math.sqrt(((train_log - train_log.mean())**2).sum()/(len(train_log)-1))
     
     #평균수익률
-    earning_rate_mean = train_log.mean() -0.5*((train_log.mean())*(train_log.mean()))
+    earning_rate_mean = train_log.mean() -0.5*((roc/100)*(roc/100))
     
     #수익률 
     rtn = earning_rate_mean + roc*r_n
@@ -58,6 +58,7 @@ def new_data(train):
     
     
     return data    
+
 
 
 #라벨링 리스트 생성 함수(input : (data, 만들 행 갯수))
@@ -151,7 +152,7 @@ b1 = tal(data1, 275, 25)
 #train 데이터 생성 (20개)
 train_data = pd.DataFrame()
 
-for i in range(20):
+for i in range(150):
     data = new_data(train)
     df = tal(data, 338, 88)
     train_data = pd.concat([train_data, df])
@@ -252,11 +253,21 @@ confusion_matrix(y_pred, y_test)
 from sklearn.naive_bayes import GaussianNB
 nb = GaussianNB()
 
-y_pred = nb.fit(X_train, y_train).predict(X_test)
+nb.fit(X_train, y_train)
+
+nb.predict(X_test)
 
 print("Number of mislabeled points out of a total %d proints : %d" % (X_test.shape[0], (y_test != y_pred).sum()))
 
-(246-109)/246
+#DT
+from sklearn import tree
+
+clf = tree.DecisionTreeClassifier()
+clf.fit(X_train, y_train)
+
+y_pred = clf.predict(X_test)
+
+accuracy_score(y_pred, y_test) #0.4552
 
 #KNN
 from sklearn.neighbors import KNeighborsClassifier
@@ -268,6 +279,8 @@ y_pred = classifier.predict(X_test)
 
 accuracy_score(y_pred, y_test) #0.5203252032520326
 
+
+
 #RF
 from sklearn.ensemble import RandomForestClassifier
 # instantiate the classifier 
@@ -277,8 +290,20 @@ y_pred = rfc.predict(X_test)
 
 accuracy_score(y_pred, y_test) #0.532520325203252
 
+#svm
+import sklearn.svm as svm
 
-#명석 모델
+svm_clf = svm.SVC(kernel = 'linear')
+
+svm_clf.fit(X_train, y_train)
+
+y_pred = svm_clf.predict(X_test)
+
+accuracy_score(y_pred, y_test) #0.491869918699187
+
+
+
+#xgboost
 from sklearn import preprocessing
 import xgboost as xgb
 from xgboost import XGBClassifier
