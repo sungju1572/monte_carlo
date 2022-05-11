@@ -9,15 +9,14 @@ import talib
 
 #삼성데이터 
 #train 데이터 (2016~2020.12)
-train = fdr.DataReader(symbol='000660', start='2015', end='2021')
+train = fdr.DataReader(symbol='KS11', start='2015', end='2021')
 
 #모멘텀지수 사용해야 하므로 이전데이터 몇개 추가(2015년 데이터)
 train = train[220:]
 
 
-
 #test 데이터 (2021.1~12)
-test = fdr.DataReader(symbol='000660', start='2020', end='2022')
+test = fdr.DataReader(symbol='KS11', start='2020', end='2022')
 
 test = test[150:]
 
@@ -152,12 +151,75 @@ b1 = tal(data1, 275, 25)
 #train 데이터 생성 (20개)
 train_data = pd.DataFrame()
 
-for i in range(150):
+for i in range(200):
     data = new_data(train)
     df = tal(data, 338, 88)
     train_data = pd.concat([train_data, df])
      
 train_data = train_data.reset_index(drop=True)   
+
+
+#실제 train 생성
+train_df = train["Close"].diff().shift(-1)
+train_df = train_df.dropna()
+
+
+train_df_list = []
+
+for i in range(len(train_df)):
+    if train_df[i] > 0 :
+        train_df_list.append(1)
+    else:
+        train_df_list.append(0)
+
+
+
+train_apo = talib.APO(train['Close'])
+train_cmo = talib.CMO(train['Close'])
+train_macd , train_macdsignal , train_macdhist = talib.MACD(train['Close'])
+train_mom = talib.MOM(train['Close'])
+train_ppo = talib.PPO(train['Close'])
+train_roc = talib.ROC(train['Close'])
+train_rocp = talib.ROCP(train['Close'])
+train_rocr = talib.ROCR(train['Close'])
+train_rocr100 = talib.ROCR100(train['Close'])
+train_rsi = talib.RSI(train['Close'])
+train_fasrk, train_fasrd = talib.STOCHRSI(train["Close"])
+train_trix = talib.TRIX(train['Close'])
+
+
+len(train_trix[248:-1])
+
+len(train_df_list[248:])
+
+len(train_trix)
+len(train_df_list)
+
+time = 248
+
+data = {'APO' : train_cmo[time:-1],
+        'CMO' : train_cmo[time:-1],
+        'MACD' : train_macd[time:-1],
+        'MACDSIGNAL' : train_macdsignal[time:-1],
+        'MACDHIST' : train_macdhist[time:-1],
+        'MOM' : train_mom[time:-1],
+        'PPO' : train_ppo[time:-1],
+        'ROC' : train_roc[time:-1],
+        'ROCP' : train_rocp[time:-1],
+        'ROCR' : train_rocr[time:-1],
+        'ROCR100' : train_rocr100[time:-1],
+        'RSI' : train_rsi[time:-1],
+        'FASRK' : train_fasrk[time:-1],
+        'FASRD' : train_fasrd[time:-1],
+        'TRIX' : train_trix[time:-1],
+        'label' : train_df_list[time:]
+        }
+
+#train_data 생성(종가 제외)
+train_data_real = pd.DataFrame(data)
+train_data_real = train_data_real.reset_index(drop=True)
+
+
 
 #test 데이터 생성
 test_df = test["Close"].diff().shift(-1)
@@ -230,6 +292,14 @@ X_test = test_data.drop(['label'], axis=1) #test데이터
 y_test = test_data["label"]
 
 
+#train_real / test 라벨나누기
+X_train = train_data_real.drop(["label"], axis = 1 ) #학습데이터
+y_train = train_data_real["label"] #정답라벨
+X_test = test_data.drop(['label'], axis=1) #test데이터
+y_test = test_data["label"]
+
+
+
 ##로지스틱 회귀분석
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
@@ -249,15 +319,7 @@ accuracy_score(y_pred, y_test) #0.5121951219512195
 
 confusion_matrix(y_pred, y_test)
 
-##나이브 베이즈
-from sklearn.naive_bayes import GaussianNB
-nb = GaussianNB()
 
-nb.fit(X_train, y_train)
-
-nb.predict(X_test)
-
-print("Number of mislabeled points out of a total %d proints : %d" % (X_test.shape[0], (y_test != y_pred).sum()))
 
 #DT
 from sklearn import tree
@@ -284,22 +346,11 @@ accuracy_score(y_pred, y_test) #0.5203252032520326
 #RF
 from sklearn.ensemble import RandomForestClassifier
 # instantiate the classifier 
-rfc = RandomForestClassifier(random_state=0)
+rfc = RandomForestClassifier(random_state=14)
 rfc.fit(X_train, y_train)
 y_pred = rfc.predict(X_test)
 
 accuracy_score(y_pred, y_test) #0.532520325203252
-
-#svm
-import sklearn.svm as svm
-
-svm_clf = svm.SVC(kernel = 'linear')
-
-svm_clf.fit(X_train, y_train)
-
-y_pred = svm_clf.predict(X_test)
-
-accuracy_score(y_pred, y_test) #0.491869918699187
 
 
 
@@ -326,7 +377,7 @@ parameters = {'nthread':[4], #when use hyperthread, xgboost may become slower
               'subsample': [0.7],
               'colsample_bytree': [0.7],
               'n_estimators': [500],
-              "random_state" : [25]}
+              "random_state" : [26]}
 
 xgb_grid = GridSearchCV(xgb1,
                         parameters,
