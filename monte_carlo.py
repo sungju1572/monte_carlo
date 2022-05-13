@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import math
 import pandas as pd
 import talib
-
+import seaborn as sns
 
 
 #삼성데이터 
@@ -56,7 +56,7 @@ def new_data(train):
     data = (100*np.exp(rtn/100))
     
     
-    return data    
+    return data  
 
 
 
@@ -120,9 +120,27 @@ def tal(data, num, time):
     return train_data
 
 
-num =275
 
-data = new_data(train)
+#plot 그려보기
+data = new_data(train[:100])
+
+
+a = []
+b = []
+for i in range(5):
+    data = new_data(train)
+    plt.plot(data[:50], label="data : %s" %i)
+    plt.legend()
+
+
+sns.kdeplot(a, color='blue', bw=0.3, label='REAL data')
+sns.kdeplot(b, color='blue', bw=0.3, label='REAL data')
+
+
+D
+
+#기술지표생성
+num =275
 
 train_apo = talib.APO(data[:num])
 train_cmo = talib.CMO(data[:num])
@@ -151,12 +169,13 @@ b1 = tal(data1, 275, 25)
 #train 데이터 생성 (20개)
 train_data = pd.DataFrame()
 
-for i in range(200):
+for i in range(20):
     data = new_data(train)
     df = tal(data, 338, 88)
     train_data = pd.concat([train_data, df])
      
 train_data = train_data.reset_index(drop=True)   
+
 
 
 #실제 train 생성
@@ -398,3 +417,7 @@ print(xgb_grid.best_params_)
 y_pred = xgb_grid.predict(X_test)
 
 accuracy_score(y_pred, y_test) #0.540650406504065
+
+
+#생성 데이터 plot 그리기
+train_df
