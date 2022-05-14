@@ -37,23 +37,22 @@ def random_normal():
     return r_n
 
 
-
 #변동률, 평균수익률, 종가 데이터 생성
 def new_data(train):
     train_log = log_rtn(train)
     r_n = random_normal()
     
     #변동률
-    roc = math.sqrt(((train_log - train_log.mean())**2).sum()/(len(train_log)-1))
+    roc = math.sqrt(((train_log - train_log.mean())**2).sum()/(len(train_log)-1))/100
     
     #평균수익률
-    earning_rate_mean = train_log.mean() -0.5*((roc/100)*(roc/100))
+    earning_rate_mean = train_log.mean()/100 -0.5*((roc)*(roc))
     
     #수익률 
     rtn = earning_rate_mean + roc*r_n
     
     #새로 생성한 종가 데이터
-    data = (100*np.exp(rtn/100))
+    data = (1000*np.exp(rtn))
     
     
     return data  
@@ -125,19 +124,28 @@ def tal(data, num, time):
 data = new_data(train[:100])
 
 
-a = []
-b = []
+
 for i in range(5):
     data = new_data(train)
-    plt.plot(data[:50], label="data : %s" %i)
+    plt.plot(data[:250], label="data : %s" %i)
     plt.legend()
 
 
-sns.kdeplot(a, color='blue', bw=0.3, label='REAL data')
-sns.kdeplot(b, color='blue', bw=0.3, label='REAL data')
+a = []
+b = []
+for i in range(1000):
+    data = new_data(train)
+
+    plt.legend()
+
+data = new_data(train)
+plt.plot(data)
+#수익률 분포
+sns.kdeplot(train['log_rtn'][1:], color='blue', bw=0.3, label='REAL data')
+sns.kdeplot(data , color='blue', bw=0.3, label='REAL data')
 
 
-D
+
 
 #기술지표생성
 num =275
