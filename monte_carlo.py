@@ -14,6 +14,7 @@ train = fdr.DataReader(symbol='KS11', start='2015', end='2021')
 #모멘텀지수 사용해야 하므로 이전데이터 몇개 추가(2015년 데이터)
 train = train[220:]
 
+#train.to_csv('kospi.csv')
 
 #test 데이터 (2021.1~12)
 test = fdr.DataReader(symbol='KS11', start='2020', end='2022')
@@ -21,13 +22,14 @@ test = fdr.DataReader(symbol='KS11', start='2020', end='2022')
 test = test[150:]
 
 
+
 #로그 수익률 생성 함수(input 값: dataframe)
 def log_rtn(train):
     train['log_rtn'] = np.log(train.Close/train.Close.shift(1))
     train = train.dropna()[['log_rtn','Close']]
 
-    #퍼센트로 계산
-    train['log_rtn'] = train['log_rtn']*100
+    
+    train['log_rtn'] = train['log_rtn']
     train_log = train['log_rtn']
     return train_log
 
@@ -37,22 +39,32 @@ def random_normal():
     return r_n
 
 
-#변동률, 평균수익률, 종가 데이터 생성
+#변동률, 평균수익률, 종가 데이터 생성 (n : 며칠동안인지)
 def new_data(train):
     train_log = log_rtn(train)
     r_n = random_normal()
     
+    #분산
+    rn = (((train_log - train_log.mean())**2).sum()/(len(train_log)-1))
+    
+    #연평균 성장률(수익률)
+    growth_rate = (2873.47/1918.76) **(1/5) -1
+    
+    #n일간 dirft
+    n_drift =  250 * growth_rate/252
+    
+    
     #변동률
-    roc = math.sqrt(((train_log - train_log.mean())**2).sum()/(len(train_log)-1))/100
+    roc = np.sqrt(rn *252) 
     
     #평균수익률
-    earning_rate_mean = train_log.mean()/100 -0.5*((roc)*(roc))
+    earning_rate_mean = n_drift -0.5*((roc)*(roc))
     
     #수익률 
     rtn = earning_rate_mean + roc*r_n
     
     #새로 생성한 종가 데이터
-    data = (1000*np.exp(rtn))
+    data = (100*np.exp(rtn))
     
     
     return data  
@@ -121,29 +133,23 @@ def tal(data, num, time):
 
 
 #plot 그려보기
-data = new_data(train[:100])
 
-
-
-for i in range(5):
+for i in range(1):
     data = new_data(train)
     plt.plot(data[:250], label="data : %s" %i)
     plt.legend()
 
 
+#데이터 분포 확인
 a = []
-b = []
+
 for i in range(1000):
     data = new_data(train)
+    a.append(data[:250][-1])
 
-    plt.legend()
-
-data = new_data(train)
-plt.plot(data)
-#수익률 분포
-sns.kdeplot(train['log_rtn'][1:], color='blue', bw=0.3, label='REAL data')
-sns.kdeplot(data , color='blue', bw=0.3, label='REAL data')
-
+#주가 분포
+sns.kdeplot(a , color='blue', bw=0.3, label='200')
+plt.legend()
 
 
 
@@ -165,7 +171,7 @@ train_trix = talib.TRIX(data[:num])
 
 
 
-#데이터 생성(랜덤 남수)    
+#데이터 생성(랜덤 난수를 통한 종가 데이터)    
 data = new_data(train)   
 data1 = new_data(train)   
 
@@ -177,7 +183,7 @@ b1 = tal(data1, 275, 25)
 #train 데이터 생성 (20개)
 train_data = pd.DataFrame()
 
-for i in range(20):
+for i in range(200):
     data = new_data(train)
     df = tal(data, 338, 88)
     train_data = pd.concat([train_data, df])
@@ -404,7 +410,7 @@ parameters = {'nthread':[4], #when use hyperthread, xgboost may become slower
               'subsample': [0.7],
               'colsample_bytree': [0.7],
               'n_estimators': [500],
-              "random_state" : [26]}
+              "random_state" : [24]}
 
 xgb_grid = GridSearchCV(xgb1,
                         parameters,
