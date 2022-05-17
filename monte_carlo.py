@@ -11,6 +11,8 @@ import seaborn as sns
 #train 데이터 (2016~2020.12)
 train = fdr.DataReader(symbol='KS11', start='2015', end='2021')
 
+#실제 데이터 (로그 수익률 확인용 (2015.12.20~))
+train_real = train[247:]
 #모멘텀지수 사용해야 하므로 이전데이터 몇개 추가(2015년 데이터)
 train = train[220:]
 
@@ -41,30 +43,24 @@ def random_normal():
 
 #변동률, 평균수익률, 종가 데이터 생성 (n : 며칠동안인지)
 def new_data(train):
-    train_log = log_rtn(train)
+    train_log = log_rtn(train_real)
     r_n = random_normal()
     
-    #분산
-    rn = (((train_log - train_log.mean())**2).sum()/(len(train_log)-1))
+    #일일 수익률(평균)
+    rtn_d = train_log.mean()
     
-    #연평균 성장률(수익률)
-    growth_rate = (2873.47/1918.76) **(1/5) -1
-    
-    #n일간 dirft
-    n_drift =  250 * growth_rate/252
-    
-    
-    #변동률
-    roc = np.sqrt(rn *252) 
+    #변동성(표준편차)
+    roc = np.std(train_log)
     
     #평균수익률
-    earning_rate_mean = n_drift -0.5*((roc)*(roc))
+    earning_rate_mean = rtn_d -0.5*((roc)**2)
     
     #수익률 
     rtn = earning_rate_mean + roc*r_n
     
+    
     #새로 생성한 종가 데이터
-    data = (100*np.exp(rtn))
+    data = (100*np.cumprod(np.exp(rtn)))
     
     
     return data  
@@ -133,8 +129,8 @@ def tal(data, num, time):
 
 
 #plot 그려보기
-
-for i in range(1):
+%matplotlib auto
+for i in range(1000):
     data = new_data(train)
     plt.plot(data[:250], label="data : %s" %i)
     plt.legend()
@@ -350,8 +346,6 @@ y_pred = model.predict(X_test)
 accuracy_score(y_pred, y_test) #0.5121951219512195
 
 
-confusion_matrix(y_pred, y_test)
-
 
 
 #DT
@@ -379,7 +373,7 @@ accuracy_score(y_pred, y_test) #0.5203252032520326
 #RF
 from sklearn.ensemble import RandomForestClassifier
 # instantiate the classifier 
-rfc = RandomForestClassifier(random_state=14)
+rfc = RandomForestClassifier(random_state=26)
 rfc.fit(X_train, y_train)
 y_pred = rfc.predict(X_test)
 
@@ -393,12 +387,6 @@ import xgboost as xgb
 from xgboost import XGBClassifier
 import datetime
 from sklearn.model_selection import GridSearchCV
-
-
-X_train = train_data.drop(["label"], axis = 1 ) #학습데이터
-y_train = train_data["label"] #정답라벨
-X_test = test_data.drop(['label'], axis=1) #test데이터
-y_test = test_data["label"]
 
 xgb1 = XGBClassifier()
 parameters = {'nthread':[4], #when use hyperthread, xgboost may become slower
