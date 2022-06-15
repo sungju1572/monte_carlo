@@ -129,17 +129,17 @@ def tal(data, num, time):
 
 
 #plot 그려보기
-%matplotlib auto
-for i in range(1000):
+
+for i in range(100):
     data = new_data(train)
-    plt.plot(data[:250], label="data : %s" %i)
+    plt.plot(data[:250])
     plt.legend()
 
 
 #데이터 분포 확인
 a = []
 
-for i in range(1000):
+for i in range(100):
     data = new_data(train)
     a.append(data[:250][-1])
 
