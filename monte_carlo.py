@@ -67,6 +67,7 @@ def new_data(train):
 
 
 
+
 #라벨링 리스트 생성 함수(input : (data, 만들 행 갯수))
 def label_list(data, num):
     data_df = pd.DataFrame(data, columns = ["data"])
@@ -423,3 +424,31 @@ accuracy_score(y_pred, y_test) #0.540650406504065
 
 #생성 데이터 plot 그리기
 train_df
+
+
+#buy_hold
+train_data_real["position"] = None
+
+train_data_drop = train_data_real[['label', 'position']]
+
+
+for i in train_data_drop.index:
+    print(i)
+
+train_data_real.loc[2].index
+
+train_data_real.iloc[0].index
+
+#강화학습 예측값
+for i in range(0, len(train_data_real)):
+        try:
+            if train_data_real['label'][i]+train_data_real['label'][i+1]==0:
+                train_data_real['position'][i+1]='no action'
+            elif train_data_real['label'][i]+train_data_real['label'][i+1]==2:
+                train_data_real['position'][i+1]='holding'
+            elif train_data_real['label'][i] > train_data_real['label'][i+1]:
+                train_data_real['position'][i+1]='sell'
+            else:
+                train_data_real['position'][i+1]='buy'
+        except:
+            pass
