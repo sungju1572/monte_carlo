@@ -527,7 +527,6 @@ plt.scatter(buy_index, test_data_drop["Close"][buy_index], c='red', marker='o', 
 plt.scatter(sell_index, test_data_drop["Close"][sell_index], c='green', marker='s', alpha=.5, label = "sell")
 plt.legend()
 
-
 #pred
 len(y_pred)
 
