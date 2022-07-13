@@ -180,7 +180,7 @@ b1 = tal(data1, 275, 25)
 #train 데이터 생성 (20개)
 train_data = pd.DataFrame()
 
-for i in range(200):
+for i in range(20):
     data = new_data(train)
     df = tal(data, 338, 88)
     train_data = pd.concat([train_data, df])
@@ -344,6 +344,7 @@ print(model.score(X_train, y_train))
 
 y_pred = model.predict(X_test)
 
+
 accuracy_score(y_pred, y_test) #0.5121951219512195
 
 
@@ -371,10 +372,11 @@ accuracy_score(y_pred, y_test) #0.5203252032520326
 
 
 
+
 #RF
 from sklearn.ensemble import RandomForestClassifier
 # instantiate the classifier 
-rfc = RandomForestClassifier(random_state=26)
+rfc = RandomForestClassifier(random_state=24)
 rfc.fit(X_train, y_train)
 y_pred = rfc.predict(X_test)
 
@@ -422,33 +424,173 @@ y_pred = xgb_grid.predict(X_test)
 accuracy_score(y_pred, y_test) #0.540650406504065
 
 
-#생성 데이터 plot 그리기
+#
 train_df
 
+test_data
 
-#buy_hold
-train_data_real["position"] = None
-
-train_data_drop = train_data_real[['label', 'position']]
+y_pred
 
 
-for i in train_data_drop.index:
-    print(i)
+test_close = test["Close"]
+test_close  = test_close [99:]
 
-train_data_real.loc[2].index
 
-train_data_real.iloc[0].index
+#buy_hold_real
+test_data["position"] = None
 
-#강화학습 예측값
-for i in range(0, len(train_data_real)):
+test_data_drop = test_data[['label', 'position']]
+
+
+
+#라벨링
+for i in range(0, len(test_data_drop)):
         try:
-            if train_data_real['label'][i]+train_data_real['label'][i+1]==0:
-                train_data_real['position'][i+1]='no action'
-            elif train_data_real['label'][i]+train_data_real['label'][i+1]==2:
-                train_data_real['position'][i+1]='holding'
-            elif train_data_real['label'][i] > train_data_real['label'][i+1]:
-                train_data_real['position'][i+1]='sell'
+            if test_data_drop['label'][i]+test_data_drop['label'][i+1]==0:
+                test_data_drop['position'][i+1]='no action'
+            elif test_data_drop['label'][i]+test_data_drop['label'][i+1]==2:
+                test_data_drop['position'][i+1]='holding'
+            elif test_data_drop['label'][i] > test_data_drop['label'][i+1]:
+                test_data_drop['position'][i+1]='sell'
             else:
-                train_data_real['position'][i+1]='buy'
+                test_data_drop['position'][i+1]='buy'
         except:
             pass
+
+
+
+test_data_drop = test_data_drop.drop(index=[0])
+
+test_data_drop  = test_data_drop.reset_index()
+
+#종가 붙이기
+len(test_data_drop)
+len(test_close[2:])
+
+test_close_1 = test_close[2:].reset_index()["Close"]
+
+
+test_data_drop["Close"] = test_close_1
+
+#수익률 붙이기
+
+
+test_data_rtn = test_close.pct_change() * 100
+len(test_data_rtn)
+
+test_close_rtn = test_data_rtn[2:].reset_index()["Close"]
+
+
+test_data_drop["rtn"] = test_close_rtn 
+
+
+
+test_data_drop["new_rtn"] = 0.0
+
+for i in range(len(test_data_drop)):
+    if test_data_drop["position"][i] == "buy" or test_data_drop["position"][i] == "no action" :
+        test_data_drop["new_rtn"][i] = 0
+    else : 
+        test_data_drop["new_rtn"][i] = test_data_drop['rtn'][i] 
+         
+        
+test_data_drop["new_rtn"].sum()
+
+
+
+
+
+#buy_index
+
+test_data_drop["index"] = test_data_drop.index
+
+buy_index =[]
+sell_index = []
+
+len(sell_index)
+
+for i in range(len(test_data_drop)):
+    if test_data_drop["position"][i] == "buy":
+        buy_index.append(test_data_drop['index'][i])
+    elif test_data_drop['position'][i] == "sell" :       
+        sell_index.append(test_data_drop['index'][i])
+
+
+
+test_data_drop["Close"][buy_index]
+
+
+
+#%matplotlib auto
+plt.plot(test_data_drop["Close"])
+plt.scatter(buy_index, test_data_drop["Close"][buy_index], c='red', marker='o', alpha=.5, label = "buy")
+plt.scatter(sell_index, test_data_drop["Close"][sell_index], c='green', marker='s', alpha=.5, label = "sell")
+plt.legend()
+
+
+#pred
+len(y_pred)
+
+test_data_pred = test_data_drop[["Close", "rtn"]]
+
+test_data_pred['label'] = y_pred[1:]
+
+test_data_pred['position'] = None
+
+
+for i in range(0, len(test_data_pred)):
+        try:
+            if test_data_pred['label'][i]+test_data_pred['label'][i+1]==0:
+                test_data_pred['position'][i+1]='no action'
+            elif test_data_pred['label'][i]+test_data_pred['label'][i+1]==2:
+                test_data_pred['position'][i+1]='holding'
+            elif test_data_pred['label'][i] > test_data_pred['label'][i+1]:
+                test_data_pred['position'][i+1]='sell'
+            else:
+                test_data_pred['position'][i+1]='buy'
+        except:
+            pass
+
+
+if test_data_pred['position'][0] == None:
+    if test_data_pred['label'][0] ==   1:
+        test_data_pred['position'][0] = "buy"
+
+
+
+
+test_data_pred["new_rtn"] = 0.0
+
+for i in range(len(test_data_pred)):
+    if test_data_pred["position"][i] == "buy" or test_data_pred["position"][i] == "no action" :
+        test_data_pred["new_rtn"][i] = 0
+    else : 
+        test_data_pred["new_rtn"][i] = test_data_pred['rtn'][i] 
+         
+        
+test_data_pred["new_rtn"].sum()
+
+
+
+#rmfovm
+
+test_data_pred["index"] = test_data_pred.index
+
+buy_index =[]
+sell_index = []
+
+
+
+
+for i in range(len(test_data_pred)):
+    if test_data_pred["position"][i] == "buy":
+        buy_index.append(test_data_pred['index'][i])
+    elif test_data_pred['position'][i] == "sell" :       
+        sell_index.append(test_data_pred['index'][i])
+
+len(sell_index)
+
+plt.plot(test_data_pred["Close"])
+plt.scatter(buy_index, test_data_pred["Close"][buy_index], c='red', marker='o', alpha=.5, label = "buy")
+plt.scatter(sell_index, test_data_pred["Close"][sell_index], c='green', marker='s', alpha=.5, label = "sell")
+plt.legend()
