@@ -571,7 +571,6 @@ for i in range(len(test_data_pred)):
 test_data_pred["new_rtn"].sum()
 
 
-
 #rmfovm
 
 test_data_pred["index"] = test_data_pred.index
