@@ -472,6 +472,79 @@ test_close_1 = test_close[2:].reset_index()["Close"]
 
 test_data_drop["Close"] = test_close_1
 
+#diff 붙이기
+test_close_diff = test_close.diff()
+
+test_close_diff_1 = test_close_diff[2:].reset_index()["Close"]
+
+
+len(test_close_diff )
+len(test_data_drop)
+
+test_data_drop["diff"] = test_close_diff_1 
+
+
+
+#거래 횟수
+test_data_drop['new_diff'] = 0.0
+
+for i in range(len(test_data_drop)):
+    if test_data_drop["position"][i] == "buy" or test_data_drop["position"][i] == "no action" :
+        test_data_drop["new_diff"][i] = 0
+    else : 
+        test_data_drop["new_diff"][i] = test_data_drop['diff'][i] 
+         
+
+
+#sell 기준 합치기
+
+test_data_drop["diff_sum"] = 0.0
+
+a = []
+
+for i in range(1, len(test_data_drop)):
+    if test_data_drop["new_diff"][i] != 0 :
+        a.append(test_data_drop["new_diff"][i])
+    else:
+        test_data_drop["diff_sum"][i-1] = sum(a)
+        a=[]
+        
+
+#buy_sell index
+
+buy_index =[]
+sell_index = []
+
+len(sell_index)
+
+for i in range(len(test_data_drop)):
+    if test_data_drop["position"][i] == "buy":
+        buy_index.append(test_data_drop['index'][i])
+    elif test_data_drop['position'][i] == "sell" :       
+        sell_index.append(test_data_drop['index'][i])
+
+len(sell_index)
+
+
+#win rate
+
+win_rate_count = 0
+
+for i in range(len(test_data_drop)): 
+    if test_data_drop["diff_sum"][i] > 0:
+        win_rate_count +=1        
+    
+
+win_rate_count / len(sell_index)
+
+
+
+#payoff_rate
+
+
+
+
+
 #수익률 붙이기
 
 
@@ -485,7 +558,12 @@ test_data_drop["rtn"] = test_close_rtn
 
 
 
+
+
 test_data_drop["new_rtn"] = 0.0
+
+
+
 
 for i in range(len(test_data_drop)):
     if test_data_drop["position"][i] == "buy" or test_data_drop["position"][i] == "no action" :
