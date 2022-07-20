@@ -540,9 +540,28 @@ win_rate_count / len(sell_index)
 
 
 #payoff_rate
+gain_list = []
+loss_list = []
+all_list = []
+
+for i in range(len(test_data_drop)):
+    if test_data_drop["diff_sum"][i] > 0:
+        gain_list.append(test_data_drop["diff_sum"][i])
+        all_list.append(test_data_drop["diff_sum"][i])
+    elif test_data_drop["diff_sum"][i] <0:
+        loss_list.append(test_data_drop["diff_sum"][i])
+        all_list.append(test_data_drop["diff_sum"][i])
+        
+np.mean(loss_list) / np.mean(gain_list)
 
 
+#profit factor
 
+sum(loss_list) / sum(gain_list)
+
+#average gain & loss
+np.mean(gain_list)
+np.mean(loss_list)
 
 
 #수익률 붙이기
