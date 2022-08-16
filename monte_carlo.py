@@ -5,11 +5,22 @@ import math
 import pandas as pd
 import talib
 import seaborn as sns
-
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import confusion_matrix
+from sklearn import tree
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn import preprocessing
+import xgboost as xgb
+from xgboost import XGBClassifier
+import datetime
+from sklearn.model_selection import GridSearchCV
 
 #삼성데이터 
 #train 데이터 (2016~2020.12)
-train = fdr.DataReader(symbol='KS11', start='2015', end='2021')
+train = fdr.DataReader(symbol='005930', start='2015', end='2021')
 
 #실제 데이터 (로그 수익률 확인용 (2015.12.20~))
 train_real = train[247:]
@@ -42,7 +53,7 @@ def random_normal():
 
 
 #변동률, 평균수익률, 종가 데이터 생성 (n : 며칠동안인지)
-def new_data(train):
+def new_data(train_real):
     train_log = log_rtn(train_real)
     r_n = random_normal()
     
@@ -129,10 +140,77 @@ def tal(data, num, time):
 
 
 
+
+#test 데이터 생성
+def make_test(test):
+    test_df = test["Close"].diff().shift(-1)
+    test_df = test_df.dropna()
+    
+    test_df = test_df[99:]
+    
+    
+    test_df_list = []
+    
+    for i in range(len(test_df)):
+        if test_df[i] > 0 :
+            test_df_list.append(1)
+        else:
+            test_df_list.append(0)
+    
+    
+    len(test_df_list)
+    
+    
+    time = 99
+    
+    test_apo = talib.APO(test['Close'])
+    test_cmo = talib.CMO(test['Close'])
+    test_macd , test_macdsignal , test_macdhist = talib.MACD(test['Close'])
+    test_mom = talib.MOM(test['Close'])
+    test_ppo = talib.PPO(test['Close'])
+    test_roc = talib.ROC(test['Close'])
+    test_rocp = talib.ROCP(test['Close'])
+    test_rocr = talib.ROCR(test['Close'])
+    test_rocr100 = talib.ROCR100(test['Close'])
+    test_rsi = talib.RSI(test['Close'])
+    test_fasrk, test_fasrd = talib.STOCHRSI(test["Close"])
+    test_trix = talib.TRIX(test['Close'])
+    
+    
+    len(test_df)
+    len(test_trix[99:-1])
+    
+    
+    data = {'APO' : test_cmo[time:-1],
+            'CMO' : test_cmo[time:-1],
+            'MACD' : test_macd[time:-1],
+            'MACDSIGNAL' : test_macdsignal[time:-1],
+            'MACDHIST' : test_macdhist[time:-1],
+            'MOM' : test_mom[time:-1],
+            'PPO' : test_ppo[time:-1],
+            'ROC' : test_roc[time:-1],
+            'ROCP' : test_rocp[time:-1],
+            'ROCR' : test_rocr[time:-1],
+            'ROCR100' : test_rocr100[time:-1],
+            'RSI' : test_rsi[time:-1],
+            'FASRK' : test_fasrk[time:-1],
+            'FASRD' : test_fasrd[time:-1],
+            'TRIX' : test_trix[time:-1],
+            'label' : test_df_list
+            }
+    
+    #test_data 생성(종가 제외)
+    test_data = pd.DataFrame(data)
+    test_data = test_data.reset_index(drop=True)
+
+    return test_data
+
+
+
 #plot 그려보기
 
 for i in range(100):
-    data = new_data(train)
+    data = new_data(train_real)
     plt.plot(data[:250])
     plt.legend()
 
@@ -140,8 +218,8 @@ for i in range(100):
 #데이터 분포 확인
 a = []
 
-for i in range(100):
-    data = new_data(train)
+for i in range(20):
+    data = new_data(train_real)
     a.append(data[:250][-1])
 
 #주가 분포
@@ -177,6 +255,98 @@ b = tal(data, 338, 88)
 b1 = tal(data1, 275, 25)
 
 
+
+#데이터 자동화
+kospi_200_list = ["005930","000660","207940","051910","006400","035420","005380","035720","000270","068270","028260","005490","105560","012330","096770","055550","034730","066570","015760","034020","003550","003670","032830","011200","086790","017670","051900","010130","033780"]
+count_list = [20,50,100,150,200,250]
+
+for i in kospi_200_list:
+    train = fdr.DataReader(symbol= i, start='2015', end='2021')
+    train_real = train[247:]
+    test = fdr.DataReader(symbol= i, start='2020', end='2022')
+    test = test[150:]
+
+    test_data = make_test(test)
+    
+    for j in count_list:
+        
+        train_data = pd.DataFrame()
+        
+        for k in range(j):
+            data = new_data(train_real)
+            df = tal(data, 338, 88)
+            train_data = pd.concat([train_data, df])
+                 
+        train_data = train_data.reset_index(drop=True)   
+        
+        
+        
+        #train /test 라벨 나누기
+        X_train = train_data.drop(["label"], axis = 1 ) #학습데이터
+        y_train = train_data["label"] #정답라벨
+        X_test = test_data.drop(['label'], axis=1) #test데이터
+        y_test = test_data["label"]
+        
+        #로지스틱
+        model = LogisticRegression()
+        model.fit(X_train, y_train)
+
+        y_pred_lg = model.predict(X_test)
+                
+        
+        #DT
+        clf = tree.DecisionTreeClassifier()
+        clf.fit(X_train, y_train)
+
+        y_pred_dt = clf.predict(X_test)
+
+        #rf
+        rfc = RandomForestClassifier(random_state=24)
+        rfc.fit(X_train, y_train)
+        y_pred_rf = rfc.predict(X_test)
+        
+        
+        
+        #xgboost
+        xgb1 = XGBClassifier()
+        parameters = {'nthread':[4], #when use hyperthread, xgboost may become slower
+                      'objective':['binary:logistic'],
+                      'learning_rate': [.03, 0.05, .07], #so called `eta` value
+                      'max_depth': [3, 4, 5],
+                      'min_child_weight': [4],
+                      'silent': [1],
+                      'subsample': [0.7],
+                      'colsample_bytree': [0.7],
+                      'n_estimators': [500],
+                      "random_state" : [24]}
+        
+        xgb_grid = GridSearchCV(xgb1,
+                                parameters,
+                                cv = 2,
+                                n_jobs = 5, 
+                                verbose=True)
+        
+        xgb_grid.fit(X_train,
+                 y_train)
+        
+        #prediction
+        y_pred_xg = xgb_grid.predict(X_test)
+        
+        
+                        
+                
+        
+        test_data["position"] = None
+
+        test_data_drop = test_data[['label', 'position']]
+        
+        
+#여기까지---------------------
+        
+
+            
+            
+    
 #train 데이터 생성 (20개)
 train_data = pd.DataFrame()
 
@@ -249,68 +419,6 @@ data = {'APO' : train_cmo[time:-1],
 train_data_real = pd.DataFrame(data)
 train_data_real = train_data_real.reset_index(drop=True)
 
-
-
-#test 데이터 생성
-test_df = test["Close"].diff().shift(-1)
-test_df = test_df.dropna()
-
-test_df = test_df[99:]
-
-
-test_df_list = []
-
-for i in range(len(test_df)):
-    if test_df[i] > 0 :
-        test_df_list.append(1)
-    else:
-        test_df_list.append(0)
-
-
-len(test_df_list)
-
-
-time = 99
-
-test_apo = talib.APO(test['Close'])
-test_cmo = talib.CMO(test['Close'])
-test_macd , test_macdsignal , test_macdhist = talib.MACD(test['Close'])
-test_mom = talib.MOM(test['Close'])
-test_ppo = talib.PPO(test['Close'])
-test_roc = talib.ROC(test['Close'])
-test_rocp = talib.ROCP(test['Close'])
-test_rocr = talib.ROCR(test['Close'])
-test_rocr100 = talib.ROCR100(test['Close'])
-test_rsi = talib.RSI(test['Close'])
-test_fasrk, test_fasrd = talib.STOCHRSI(test["Close"])
-test_trix = talib.TRIX(test['Close'])
-
-
-len(test_df)
-len(test_trix[99:-1])
-
-
-data = {'APO' : test_cmo[time:-1],
-        'CMO' : test_cmo[time:-1],
-        'MACD' : test_macd[time:-1],
-        'MACDSIGNAL' : test_macdsignal[time:-1],
-        'MACDHIST' : test_macdhist[time:-1],
-        'MOM' : test_mom[time:-1],
-        'PPO' : test_ppo[time:-1],
-        'ROC' : test_roc[time:-1],
-        'ROCP' : test_rocp[time:-1],
-        'ROCR' : test_rocr[time:-1],
-        'ROCR100' : test_rocr100[time:-1],
-        'RSI' : test_rsi[time:-1],
-        'FASRK' : test_fasrk[time:-1],
-        'FASRD' : test_fasrd[time:-1],
-        'TRIX' : test_trix[time:-1],
-        'label' : test_df_list
-        }
-
-#test_data 생성(종가 제외)
-test_data = pd.DataFrame(data)
-test_data = test_data.reset_index(drop=True)
 
 
 
@@ -563,6 +671,12 @@ sum(loss_list) / sum(gain_list)
 np.mean(gain_list)
 np.mean(loss_list)
 
+#총손실
+sum(loss_list)
+
+#총수익
+sum(gain_list)
+
 
 #수익률 붙이기
 
@@ -594,6 +708,14 @@ for i in range(len(test_data_drop)):
 test_data_drop["new_rtn"].sum()
 
 
+#지표들
+print("거래횟수 : ", len(sell_index))
+print("winning ratio :", win_rate_count / len(sell_index))
+print("평균 수익 :", np.mean(gain_list))
+print("평균 손실 :", np.mean(loss_list))
+print("payoff ratio :", np.mean(loss_list) / np.mean(gain_list))
+print("총수익:", sum(gain_list))
+print("총손실:", sum(loss_list))
 
 
 
@@ -623,6 +745,11 @@ plt.plot(test_data_drop["Close"])
 plt.scatter(buy_index, test_data_drop["Close"][buy_index], c='red', marker='o', alpha=.5, label = "buy")
 plt.scatter(sell_index, test_data_drop["Close"][sell_index], c='green', marker='s', alpha=.5, label = "sell")
 plt.legend()
+
+
+
+
+
 
 #pred
 len(y_pred)
@@ -684,6 +811,96 @@ for i in range(len(test_data_pred)):
         sell_index.append(test_data_pred['index'][i])
 
 len(sell_index)
+
+
+
+#win rate
+
+win_rate_count = 0
+
+for i in range(len(test_data_pred)): 
+    if test_data_pred["diff_sum"][i] > 0:
+        win_rate_count +=1        
+    
+
+win_rate_count / len(sell_index)
+
+
+
+#payoff_rate
+gain_list = []
+loss_list = []
+all_list = []
+
+for i in range(len(test_data_pred)):
+    if test_data_pred["diff_sum"][i] > 0:
+        gain_list.append(test_data_pred["diff_sum"][i])
+        all_list.append(test_data_pred["diff_sum"][i])
+    elif test_data_pred["diff_sum"][i] <0:
+        loss_list.append(test_data_pred["diff_sum"][i])
+        all_list.append(test_data_pred["diff_sum"][i])
+        
+np.mean(loss_list) / np.mean(gain_list)
+
+
+#profit factor
+
+sum(loss_list) / sum(gain_list)
+
+#average gain & loss
+np.mean(gain_list)
+np.mean(loss_list)
+
+#총손실
+sum(loss_list)
+
+#총수익
+sum(gain_list)
+
+
+#수익률 붙이기
+
+
+test_data_rtn = test_close.pct_change() * 100
+len(test_data_rtn)
+
+test_close_rtn = test_data_rtn[2:].reset_index()["Close"]
+
+
+test_data_pred["rtn"] = test_close_rtn 
+
+
+
+
+
+test_data_pred["new_rtn"] = 0.0
+
+
+
+
+for i in range(len(test_data_pred)):
+    if test_data_pred["position"][i] == "buy" or test_data_pred["position"][i] == "no action" :
+        test_data_pred["new_rtn"][i] = 0
+    else : 
+        test_data_pred["new_rtn"][i] = test_data_pred['rtn'][i] 
+         
+        
+test_data_pred["new_rtn"].sum()
+
+
+#지표들
+print("거래횟수 : ", len(sell_index))
+print("winning ratio :", win_rate_count / len(sell_index))
+print("평균 수익 :", np.mean(gain_list))
+print("평균 손실 :", np.mean(loss_list))
+print("payoff ratio :", np.mean(loss_list) / np.mean(gain_list))
+print("총수익:", sum(gain_list))
+print("총손실:", sum(loss_list))
+
+
+
+
+
 
 plt.plot(test_data_pred["Close"])
 plt.scatter(buy_index, test_data_pred["Close"][buy_index], c='red', marker='o', alpha=.5, label = "buy")
