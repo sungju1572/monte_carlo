@@ -30,7 +30,7 @@ train = train[220:]
 #train.to_csv('kospi.csv')
 
 #test 데이터 (2021.1~12)
-test = fdr.DataReader(symbol='KS11', start='2020', end='2022')
+test = fdr.DataReader(symbol='005930', start='2020', end='2022')
 
 test = test[150:]
 
@@ -350,7 +350,7 @@ for i in kospi_200_list:
 #train 데이터 생성 (20개)
 train_data = pd.DataFrame()
 
-for i in range(20):
+for i in range(50):
     data = new_data(train)
     df = tal(data, 338, 88)
     train_data = pd.concat([train_data, df])
@@ -794,7 +794,39 @@ for i in range(len(test_data_pred)):
 test_data_pred["new_rtn"].sum()
 
 
+#diff
+test_data_pred["diff"] = test_data_pred["Close"].diff()
+
+
+#거래 횟수
+test_data_pred['new_diff'] = 0.0
+
+for i in range(len(test_data_pred)):
+    if test_data_pred["position"][i] == "buy" or test_data_pred["position"][i] == "no action" :
+        test_data_pred["new_diff"][i] = 0
+    else : 
+        test_data_pred["new_diff"][i] = test_data_pred['diff'][i] 
+         
+
+
+
+#sell 기준 합치기
+
+test_data_pred["diff_sum"] = 0.0
+
+a = []
+
+for i in range(1, len(test_data_pred)):
+    if test_data_pred["new_diff"][i] != 0 and test_data_pred["position"][i] == "holding" :
+        if test_data_pred["rtn"][i] != 0 : 
+            a.append(test_data_pred["new_diff"][i])
+    else:
+        test_data_pred["diff_sum"][i-1] = sum(a)
+        a=[]
+
+
 #rmfovm
+
 
 test_data_pred["index"] = test_data_pred.index
 
