@@ -17,6 +17,14 @@ import xgboost as xgb
 from xgboost import XGBClassifier
 import datetime
 from sklearn.model_selection import GridSearchCV
+import tensorflow as tf
+
+
+seed = 42
+np.random.seed(42)
+tf.random.set_seed(seed)
+
+
 
 #삼성데이터 
 #train 데이터 (2016~2020.12)
@@ -205,6 +213,282 @@ def make_test(test):
 
     return test_data
 
+#로지스틱모델
+def logistic(X_train, y_train, X_test, y_test):
+    np.random.seed(42)
+    model = LogisticRegression()
+    model.fit(X_train, y_train)
+    print(model.score(X_train, y_train))
+
+    y_pred = model.predict(X_test)
+    
+    return y_pred
+    
+#결정트리모델
+def DT(X_train, y_train, X_test, y_test):
+    np.random.seed(42)
+    clf = tree.DecisionTreeClassifier()
+    clf.fit(X_train, y_train)
+    y_pred = clf.predict(X_test)
+    print(accuracy_score(y_pred, y_test)) #0.4552
+    
+    return y_pred
+
+#knn 모델
+def KNN(X_train, y_train, X_test, y_test):
+    np.random.seed(42)
+    
+    classifier = KNeighborsClassifier(n_neighbors = 5)
+    classifier.fit(X_train, y_train)
+    y_pred = classifier.predict(X_test)
+
+    print(accuracy_score(y_pred, y_test)) #0.5203252032520326
+
+    return y_pred
+    
+#랜덤포레스트 모델
+def RF(X_train, y_train, X_test, y_test):    
+    rfc = RandomForestClassifier(random_state=42)
+    rfc.fit(X_train, y_train)
+    y_pred = rfc.predict(X_test)
+
+    print(accuracy_score(y_pred, y_test)) #0.532520325203252
+
+    return y_pred
+
+#xgboost 모델
+def Xgboost(X_train, y_train, X_test, y_test):
+    xgb1 = XGBClassifier()
+    parameters = {'nthread':[4], #when use hyperthread, xgboost may become slower
+                  'objective':['binary:logistic'],
+                  'learning_rate': [.03, 0.05, .07], #so called `eta` value
+                  'max_depth': [3, 4, 5],
+                  'min_child_weight': [4],
+                  'silent': [1],
+                  'subsample': [0.7],
+                  'colsample_bytree': [0.7],
+                  'n_estimators': [500],
+                  "random_state" : [42]}
+
+    xgb_grid = GridSearchCV(xgb1,
+                            parameters,
+                            cv = 2,
+                            n_jobs = 5, 
+                            verbose=True)
+
+    xgb_grid.fit(X_train,
+             y_train)
+
+
+    print(xgb_grid.best_score_)
+    print(xgb_grid.best_params_)
+
+
+
+    #prediction
+    y_pred = xgb_grid.predict(X_test)
+
+    print(accuracy_score(y_pred, y_test)) #0.540650406504065
+
+    return y_pred
+
+
+#예측값 지표들 추출 (test_data_drop 부분 함수 아직 미완성)
+def pred(test_data_drop, y_pred):
+    #pred
+    len(y_pred)
+
+    test_data_pred = test_data_drop[["Close", "rtn"]]
+
+    test_data_pred['label'] = y_pred[1:]
+
+    test_data_pred['position'] = None
+
+
+    for i in range(0, len(test_data_pred)):
+            try:
+                if test_data_pred['label'][i]+test_data_pred['label'][i+1]==0:
+                    test_data_pred['position'][i+1]='no action'
+                elif test_data_pred['label'][i]+test_data_pred['label'][i+1]==2:
+                    test_data_pred['position'][i+1]='holding'
+                elif test_data_pred['label'][i] > test_data_pred['label'][i+1]:
+                    test_data_pred['position'][i+1]='sell'
+                else:
+                    test_data_pred['position'][i+1]='buy'
+            except:
+                pass
+
+
+    if test_data_pred['position'][0] == None:
+        if test_data_pred['label'][0] ==   1:
+            test_data_pred['position'][0] = "buy"
+
+
+
+
+    test_data_pred["new_rtn"] = 0.0
+
+    for i in range(len(test_data_pred)):
+        if test_data_pred["position"][i] == "buy" or test_data_pred["position"][i] == "no action" :
+            test_data_pred["new_rtn"][i] = 0
+        else : 
+            test_data_pred["new_rtn"][i] = test_data_pred['rtn'][i] 
+             
+            
+    test_data_pred["new_rtn"].sum()
+
+
+    #diff
+    test_data_pred["diff"] = test_data_pred["Close"].diff()
+
+
+    #거래 횟수
+    test_data_pred['new_diff'] = 0.0
+
+    for i in range(len(test_data_pred)):
+        if test_data_pred["position"][i] == "buy" or test_data_pred["position"][i] == "no action" :
+            test_data_pred["new_diff"][i] = 0
+        else : 
+            test_data_pred["new_diff"][i] = test_data_pred['diff'][i] 
+             
+
+
+
+    #sell 기준 합치기
+
+    test_data_pred["diff_sum"] = 0.0
+
+    a = []
+
+    for i in range(1, len(test_data_pred)):
+        if test_data_pred["position"][i] == "holding" :
+                a.append(test_data_pred["new_diff"][i])
+        elif test_data_pred["position"][i] == "sell"  :
+            a.append(test_data_pred["new_diff"][i])
+            test_data_pred["diff_sum"][i] = sum(a)
+            a=[]
+
+
+    #rmfovm
+
+
+    test_data_pred["index"] = test_data_pred.index
+
+    buy_index =[]
+    sell_index = []
+
+
+
+
+    for i in range(len(test_data_pred)):
+        if test_data_pred["position"][i] == "buy":
+            buy_index.append(test_data_pred['index'][i])
+        elif test_data_pred['position'][i] == "sell" :       
+            sell_index.append(test_data_pred['index'][i])
+
+    len(sell_index)
+
+
+
+    #win rate
+
+    win_rate_count = 0
+
+    for i in range(len(test_data_pred)): 
+        if test_data_pred["diff_sum"][i] > 0:
+            win_rate_count +=1        
+        
+
+    win_rate_count / len(sell_index)
+
+
+
+    #payoff_rate
+    gain_list = []
+    loss_list = []
+    all_list = []
+
+    for i in range(len(test_data_pred)):
+        if test_data_pred["diff_sum"][i] > 0:
+            gain_list.append(test_data_pred["diff_sum"][i])
+            all_list.append(test_data_pred["diff_sum"][i])
+        elif test_data_pred["diff_sum"][i] <0:
+            loss_list.append(test_data_pred["diff_sum"][i])
+            all_list.append(test_data_pred["diff_sum"][i])
+            
+    np.mean(loss_list) / np.mean(gain_list)
+
+
+    #profit factor
+
+    sum(loss_list) / sum(gain_list)
+
+    #average gain & loss
+    np.mean(gain_list)
+    np.mean(loss_list)
+
+    #총손실
+    sum(loss_list)
+
+    #총수익
+    sum(gain_list)
+
+
+    #수익률 붙이기
+
+
+    test_data_rtn = test_close.pct_change() * 100
+    len(test_data_rtn)
+
+    test_close_rtn = test_data_rtn[2:].reset_index()["Close"]
+
+
+    test_data_pred["rtn"] = test_close_rtn 
+
+
+
+
+
+    test_data_pred["new_rtn"] = 0.0
+
+
+
+
+    for i in range(len(test_data_pred)):
+        if test_data_pred["position"][i] == "buy" or test_data_pred["position"][i] == "no action" :
+            test_data_pred["new_rtn"][i] = 0
+        else : 
+            test_data_pred["new_rtn"][i] = test_data_pred['rtn'][i] 
+             
+            
+    test_data_pred["new_rtn"].sum()
+
+
+    #지표들
+    print("거래횟수 : ", len(sell_index))
+    print("winning ratio :", win_rate_count / len(sell_index))
+    print("평균 수익 :", np.mean(gain_list))
+    print("평균 손실 :", np.mean(loss_list))
+    print("payoff ratio :", np.mean(loss_list) / np.mean(gain_list))
+    print("총수익:", sum(gain_list))
+    print("총손실:", sum(loss_list))
+    print("profit factor:", sum(loss_list) / sum(gain_list))
+    
+    trade_count = len(sell_index)
+    winning_ratio = win_rate_count / len(sell_index)
+    mean_gain = np.mean(gain_list)
+    mean_loss = np.mean(loss_list)
+    payoff_ratio = np.mean(gain_list) /  np.mean(loss_list) 
+    sum_gain = sum(gain_list)
+    sum_loss = sum(loss_list)
+    profit_factor = sum(gain_list) / sum(loss_list) 
+    
+    return trade_count, winning_ratio, mean_gain , mean_loss, payoff_ratio , sum_gain , sum_loss , profit_factor
+
+
+
+
+
 
 
 #plot 그려보기
@@ -288,69 +572,33 @@ for i in kospi_200_list:
         y_test = test_data["label"]
         
         #로지스틱
-        model = LogisticRegression()
-        model.fit(X_train, y_train)
-
-        y_pred_lg = model.predict(X_test)
+        y_pred_lg = logistic(X_train, y_train, X_test, y_test)
                 
         
         #DT
-        clf = tree.DecisionTreeClassifier()
-        clf.fit(X_train, y_train)
-
-        y_pred_dt = clf.predict(X_test)
+        y_pred_dt = DT(X_train, y_train, X_test, y_test)
 
         #rf
-        rfc = RandomForestClassifier(random_state=24)
-        rfc.fit(X_train, y_train)
-        y_pred_rf = rfc.predict(X_test)
-        
+        y_pred_rf = RF(X_train, y_train, X_test, y_test)
         
         
         #xgboost
-        xgb1 = XGBClassifier()
-        parameters = {'nthread':[4], #when use hyperthread, xgboost may become slower
-                      'objective':['binary:logistic'],
-                      'learning_rate': [.03, 0.05, .07], #so called `eta` value
-                      'max_depth': [3, 4, 5],
-                      'min_child_weight': [4],
-                      'silent': [1],
-                      'subsample': [0.7],
-                      'colsample_bytree': [0.7],
-                      'n_estimators': [500],
-                      "random_state" : [24]}
-        
-        xgb_grid = GridSearchCV(xgb1,
-                                parameters,
-                                cv = 2,
-                                n_jobs = 5, 
-                                verbose=True)
-        
-        xgb_grid.fit(X_train,
-                 y_train)
-        
-        #prediction
-        y_pred_xg = xgb_grid.predict(X_test)
-        
-        
-                        
-                
-        
-        test_data["position"] = None
-
-        test_data_drop = test_data[['label', 'position']]
+        y_pred_xg = Xgboost(X_train, y_train, X_test, y_test)
+                     
         
         
 #여기까지---------------------
-        
+     
 
-            
+
+
+test_data = test_data.drop(["position"] , axis = 1 )
             
     
 #train 데이터 생성 (20개)
 train_data = pd.DataFrame()
 
-for i in range(50):
+for i in range(250):
     data = new_data(train)
     df = tal(data, 338, 88)
     train_data = pd.concat([train_data, df])
@@ -439,10 +687,7 @@ y_test = test_data["label"]
 
 
 ##로지스틱 회귀분석
-from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import confusion_matrix
+
 
 model = LogisticRegression()
 model.fit(X_train, y_train)
@@ -456,10 +701,11 @@ y_pred = model.predict(X_test)
 accuracy_score(y_pred, y_test) #0.5121951219512195
 
 
-
-
+    
+    
 #DT
-from sklearn import tree
+np.random.seed(42)
+
 
 clf = tree.DecisionTreeClassifier()
 clf.fit(X_train, y_train)
@@ -469,7 +715,8 @@ y_pred = clf.predict(X_test)
 accuracy_score(y_pred, y_test) #0.4552
 
 #KNN
-from sklearn.neighbors import KNeighborsClassifier
+np.random.seed(42)
+
 classifier = KNeighborsClassifier(n_neighbors = 5)
 
 classifier.fit(X_train, y_train)
@@ -482,9 +729,9 @@ accuracy_score(y_pred, y_test) #0.5203252032520326
 
 
 #RF
-from sklearn.ensemble import RandomForestClassifier
+
 # instantiate the classifier 
-rfc = RandomForestClassifier(random_state=24)
+rfc = RandomForestClassifier(random_state=42)
 rfc.fit(X_train, y_train)
 y_pred = rfc.predict(X_test)
 
@@ -493,11 +740,6 @@ accuracy_score(y_pred, y_test) #0.532520325203252
 
 
 #xgboost
-from sklearn import preprocessing
-import xgboost as xgb
-from xgboost import XGBClassifier
-import datetime
-from sklearn.model_selection import GridSearchCV
 
 xgb1 = XGBClassifier()
 parameters = {'nthread':[4], #when use hyperthread, xgboost may become slower
@@ -509,7 +751,7 @@ parameters = {'nthread':[4], #when use hyperthread, xgboost may become slower
               'subsample': [0.7],
               'colsample_bytree': [0.7],
               'n_estimators': [500],
-              "random_state" : [24]}
+              "random_state" : [42]}
 
 xgb_grid = GridSearchCV(xgb1,
                         parameters,
@@ -716,6 +958,7 @@ print("평균 손실 :", np.mean(loss_list))
 print("payoff ratio :", np.mean(loss_list) / np.mean(gain_list))
 print("총수익:", sum(gain_list))
 print("총손실:", sum(loss_list))
+print("profit factor:", sum(loss_list) / sum(gain_list))
 
 
 
@@ -745,6 +988,7 @@ plt.plot(test_data_drop["Close"])
 plt.scatter(buy_index, test_data_drop["Close"][buy_index], c='red', marker='o', alpha=.5, label = "buy")
 plt.scatter(sell_index, test_data_drop["Close"][sell_index], c='green', marker='s', alpha=.5, label = "sell")
 plt.legend()
+
 
 
 
@@ -817,11 +1061,11 @@ test_data_pred["diff_sum"] = 0.0
 a = []
 
 for i in range(1, len(test_data_pred)):
-    if test_data_pred["new_diff"][i] != 0 and test_data_pred["position"][i] == "holding" :
-        if test_data_pred["rtn"][i] != 0 : 
+    if test_data_pred["position"][i] == "holding" :
             a.append(test_data_pred["new_diff"][i])
-    else:
-        test_data_pred["diff_sum"][i-1] = sum(a)
+    elif test_data_pred["position"][i] == "sell"  :
+        a.append(test_data_pred["new_diff"][i])
+        test_data_pred["diff_sum"][i] = sum(a)
         a=[]
 
 
@@ -928,7 +1172,7 @@ print("평균 손실 :", np.mean(loss_list))
 print("payoff ratio :", np.mean(loss_list) / np.mean(gain_list))
 print("총수익:", sum(gain_list))
 print("총손실:", sum(loss_list))
-
+print("profit factor:", sum(loss_list) / sum(gain_list))
 
 
 
