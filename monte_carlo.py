@@ -28,7 +28,7 @@ tf.random.set_seed(seed)
 
 #삼성데이터 
 #train 데이터 (2016~2020.12)
-train = fdr.DataReader(symbol='005930', start='2015', end='2021')
+train = fdr.DataReader(symbol='033780', start='2015', end='2021')
 
 #실제 데이터 (로그 수익률 확인용 (2015.12.20~))
 train_real = train[247:]
@@ -38,7 +38,7 @@ train = train[220:]
 #train.to_csv('kospi.csv')
 
 #test 데이터 (2021.1~12)
-test = fdr.DataReader(symbol='005930', start='2020', end='2022')
+test = fdr.DataReader(symbol='033780', start='2020', end='2022')
 
 test = test[150:]
 
@@ -258,7 +258,7 @@ def RF(X_train, y_train, X_test, y_test):
 
 #xgboost 모델
 def Xgboost(X_train, y_train, X_test, y_test):
-    xgb1 = XGBClassifier()
+    xgb1 = XGBClassifier(tree_method='gpu_hist', gpu_id=0)
     parameters = {'nthread':[4], #when use hyperthread, xgboost may become slower
                   'objective':['binary:logistic'],
                   'learning_rate': [.03, 0.05, .07], #so called `eta` value
@@ -558,8 +558,7 @@ result_df = pd.DataFrame(columns=["id", "count","model", "trade_count", "winning
 for i in kospi_200_list:
     train = fdr.DataReader(symbol= i, start='2015', end='2021')
     train_real = train[247:]
-    test = fdr.DataReader(symbol= i, start='2020', end='2022')
-    test = test[150:]
+    
 
     test_data = make_test(test)
 
@@ -618,7 +617,308 @@ for i in kospi_200_list:
         print("종목티커 : " , i , "생성개수 : " ,j )
                                               
 #여기까지---------------------
-     
+
+
+
+#real_data(test_data구현 코드 미완성)
+
+result_df_real =  pd.DataFrame(columns=["id", "trade_count", "winning_ratio", "mean_gain", "mean_loss", "payoff_ratio" , "sum_gain" , "sum_loss" , "profit_factor"])
+for j in kospi_200_list:
+    
+    
+
+    test = fdr.DataReader(symbol= j, start='2020', end='2022')
+    test = test[150:]
+
+
+    test_data = make_test(test)    
+
+
+
+    #buy_hold_real
+    test_data["position"] = None
+    
+    test_data_drop = test_data[['label', 'position']]
+    
+    
+    
+    #라벨링
+    for i in range(0, len(test_data_drop)):
+            try:
+                if test_data_drop['label'][i]+test_data_drop['label'][i+1]==0:
+                    test_data_drop['position'][i+1]='no action'
+                elif test_data_drop['label'][i]+test_data_drop['label'][i+1]==2:
+                    test_data_drop['position'][i+1]='holding'
+                elif test_data_drop['label'][i] > test_data_drop['label'][i+1]:
+                    test_data_drop['position'][i+1]='sell'
+                else:
+                    test_data_drop['position'][i+1]='buy'
+            except:
+                pass
+    
+    
+    
+    test_data_drop = test_data_drop.drop(index=[0])
+    
+    test_data_drop  = test_data_drop.reset_index()
+    
+    #종가 붙이기
+    len(test_data_drop)
+    len(test_close[2:])
+    
+    test_close_1 = test_close[2:].reset_index()["Close"]
+    
+    
+    test_data_drop["Close"] = test_close_1
+    
+    #diff 붙이기
+    test_close_diff = test_close.diff()
+    
+    test_close_diff_1 = test_close_diff[2:].reset_index()["Close"]
+    
+    
+    len(test_close_diff )
+    len(test_data_drop)
+    
+    test_data_drop["diff"] = test_close_diff_1 
+    
+    
+    
+    #거래 횟수
+    test_data_drop['new_diff'] = 0.0
+    
+    for i in range(len(test_data_drop)):
+        if test_data_drop["position"][i] == "buy" or test_data_drop["position"][i] == "no action" :
+            test_data_drop["new_diff"][i] = 0
+        else : 
+            test_data_drop["new_diff"][i] = test_data_drop['diff'][i] 
+             
+    
+    
+    #sell 기준 합치기
+    
+    test_data_drop["diff_sum"] = 0.0
+    
+    a = []
+    
+    for i in range(1, len(test_data_drop)):
+        if test_data_drop["new_diff"][i] != 0 :
+            a.append(test_data_drop["new_diff"][i])
+        else:
+            test_data_drop["diff_sum"][i-1] = sum(a)
+            a=[]
+            
+    
+    #buy_sell index
+    
+    buy_index =[]
+    sell_index = []
+    
+    len(sell_index)
+    
+    for i in range(len(test_data_drop)):
+        if test_data_drop["position"][i] == "buy":
+            buy_index.append(test_data_drop['index'][i])
+        elif test_data_drop['position'][i] == "sell" :       
+            sell_index.append(test_data_drop['index'][i])
+    
+    len(sell_index)
+    
+    
+    #win rate
+    
+    win_rate_count = 0
+    
+    for i in range(len(test_data_drop)): 
+        if test_data_drop["diff_sum"][i] > 0:
+            win_rate_count +=1        
+        
+    
+    #win_rate_count / len(sell_index)
+    
+    
+    
+    #payoff_rate
+    gain_list = []
+    loss_list = []
+    all_list = []
+    
+    for i in range(len(test_data_drop)):
+        if test_data_drop["diff_sum"][i] > 0:
+            gain_list.append(test_data_drop["diff_sum"][i])
+            all_list.append(test_data_drop["diff_sum"][i])
+        elif test_data_drop["diff_sum"][i] <0:
+            loss_list.append(test_data_drop["diff_sum"][i])
+            all_list.append(test_data_drop["diff_sum"][i])
+            
+    #np.mean(loss_list) / np.mean(gain_list)
+    
+    
+    #profit factor
+    
+    #sum(loss_list) / sum(gain_list)
+    
+    #average gain & loss
+    np.mean(gain_list)
+    np.mean(loss_list)
+    
+    #총손실
+    sum(loss_list)
+    
+    #총수익
+    sum(gain_list)
+    
+    
+    #수익률 붙이기
+    
+    
+    test_data_rtn = test_close.pct_change() * 100
+    len(test_data_rtn)
+    
+    test_close_rtn = test_data_rtn[2:].reset_index()["Close"]
+    
+    
+    test_data_drop["rtn"] = test_close_rtn 
+    
+    
+    
+    
+    
+    test_data_drop["new_rtn"] = 0.0
+    
+    
+    
+    
+    for i in range(len(test_data_drop)):
+        if test_data_drop["position"][i] == "buy" or test_data_drop["position"][i] == "no action" :
+            test_data_drop["new_rtn"][i] = 0
+        else : 
+            test_data_drop["new_rtn"][i] = test_data_drop['rtn'][i] 
+             
+            
+    test_data_drop["new_rtn"].sum()
+    
+    
+    #지표들
+    print("거래횟수 : ", len(sell_index))
+    #print("winning ratio :", win_rate_count / len(sell_index))
+    print("평균 수익 :", np.mean(gain_list))
+    print("평균 손실 :", np.mean(loss_list))
+    #print("payoff ratio :", np.mean(loss_list) / np.mean(gain_list))
+    print("총수익:", sum(gain_list))
+    print("총손실:", sum(loss_list))
+    #print("profit factor:", sum(loss_list) / sum(gain_list))
+    
+    
+    
+    trade_count = len(sell_index)
+    if len(sell_index) != 0:
+        winning_ratio = win_rate_count / len(sell_index)
+    else:
+        winning_ratio = 0
+    mean_gain = np.mean(gain_list)
+    mean_loss = abs(np.mean(loss_list))
+    if np.mean(loss_list) != 0 :
+        payoff_ratio = abs(np.mean(gain_list) /  np.mean(loss_list)) 
+    else:
+        payoff_ratio = 0
+    sum_gain = sum(gain_list)
+    sum_loss = abs(sum(loss_list))
+    if sum(loss_list) != 0:
+        profit_factor = abs(sum(gain_list) / sum(loss_list)) 
+    else :
+        profit_factor  = 0
+    
+    
+
+    #buy_index
+    
+    test_data_drop["index"] = test_data_drop.index
+    
+    buy_index =[]
+    sell_index = []
+    
+    len(sell_index)
+    
+    for i in range(len(test_data_drop)):
+        if test_data_drop["position"][i] == "buy":
+            buy_index.append(test_data_drop['index'][i])
+        elif test_data_drop['position'][i] == "sell" :       
+            sell_index.append(test_data_drop['index'][i])
+    
+    
+    
+    test_data_drop["Close"][buy_index]
+    
+    
+    real_result_list = []
+       
+    real_result_list.append([j, trade_count, winning_ratio, mean_gain , mean_loss, payoff_ratio, sum_gain, sum_loss, profit_factor])
+
+    df=pd.DataFrame(real_result_list ,columns=["id",  "trade_count", "winning_ratio", "mean_gain", "mean_loss", "payoff_ratio" , "sum_gain" , "sum_loss" , "profit_factor"])
+       
+    result_df_real = pd.concat([result_df_real, df])
+       
+    print("종목티커 : " , j )
+    
+    
+
+
+result_df_real.to_csv("result_df_real.csv")
+
+
+
+   
+"""
+    train = fdr.DataReader(symbol= "033780", start='2015', end='2021')
+    train_real = train[247:]
+    test = fdr.DataReader(symbol= "033780", start='2020', end='2022')
+    test = test[150:]
+
+    test_data = make_test(test)
+
+    
+
+    train_data = pd.DataFrame()
+        
+    for k in range(250):
+        data = new_data(train_real)
+        df = tal(data, 338, 88)
+        train_data = pd.concat([train_data, df])
+                 
+    train_data = train_data.reset_index(drop=True)   
+        
+        
+        
+        
+    #train /test 라벨 나누기
+    X_train = train_data.drop(["label"], axis = 1 ) #학습데이터
+    y_train = train_data["label"] #정답라벨
+    X_test = test_data.drop(['label'], axis=1) #test데이터
+    y_test = test_data["label"]
+    
+    y_pred_dt = DT(X_train, y_train, X_test, y_test)
+    
+    
+    
+    y_pred_dt
+    
+    trade_count_dt, winning_ratio_dt, mean_gain_dt , mean_loss_dt, payoff_ratio_dt , sum_gain_dt , sum_loss_dt , profit_factor_dt = pred(test_data_drop, y_pred_dt)
+    
+    
+    
+    
+        
+    plt.plot(test_data_pred["Close"])
+    plt.scatter(buy_index, test_data_pred["Close"][buy_index], c='red', marker='o', alpha=.5, label = "buy")
+    plt.scatter(sell_index, test_data_pred["Close"][sell_index], c='green', marker='s', alpha=.5, label = "sell")
+    plt.legend()
+    
+    
+"""    
+
+
+result_df.to_csv("result.csv")
 
 
 
@@ -771,7 +1071,7 @@ accuracy_score(y_pred, y_test) #0.532520325203252
 
 #xgboost
 
-xgb1 = XGBClassifier()
+xgb1 = XGBClassifier(tree_method='gpu_hist', gpu_id=0)
 parameters = {'nthread':[4], #when use hyperthread, xgboost may become slower
               'objective':['binary:logistic'],
               'learning_rate': [.03, 0.05, .07], #so called `eta` value
@@ -1031,6 +1331,199 @@ len(y_pred)
 test_data_pred = test_data_drop[["Close", "rtn"]]
 
 test_data_pred['label'] = y_pred[1:]
+
+test_data_pred['position'] = None
+
+
+for i in range(0, len(test_data_pred)):
+        try:
+            if test_data_pred['label'][i]+test_data_pred['label'][i+1]==0:
+                test_data_pred['position'][i+1]='no action'
+            elif test_data_pred['label'][i]+test_data_pred['label'][i+1]==2:
+                test_data_pred['position'][i+1]='holding'
+            elif test_data_pred['label'][i] > test_data_pred['label'][i+1]:
+                test_data_pred['position'][i+1]='sell'
+            else:
+                test_data_pred['position'][i+1]='buy'
+        except:
+            pass
+
+
+if test_data_pred['position'][0] == None:
+    if test_data_pred['label'][0] ==   1:
+        test_data_pred['position'][0] = "buy"
+
+
+
+
+test_data_pred["new_rtn"] = 0.0
+
+for i in range(len(test_data_pred)):
+    if test_data_pred["position"][i] == "buy" or test_data_pred["position"][i] == "no action" :
+        test_data_pred["new_rtn"][i] = 0
+    else : 
+        test_data_pred["new_rtn"][i] = test_data_pred['rtn'][i] 
+         
+        
+test_data_pred["new_rtn"].sum()
+
+
+#diff
+test_data_pred["diff"] = test_data_pred["Close"].diff()
+
+
+#거래 횟수
+test_data_pred['new_diff'] = 0.0
+
+for i in range(len(test_data_pred)):
+    if test_data_pred["position"][i] == "buy" or test_data_pred["position"][i] == "no action" :
+        test_data_pred["new_diff"][i] = 0
+    else : 
+        test_data_pred["new_diff"][i] = test_data_pred['diff'][i] 
+         
+
+
+
+#sell 기준 합치기
+
+test_data_pred["diff_sum"] = 0.0
+
+a = []
+
+for i in range(1, len(test_data_pred)):
+    if test_data_pred["position"][i] == "holding" :
+            a.append(test_data_pred["new_diff"][i])
+    elif test_data_pred["position"][i] == "sell"  :
+        a.append(test_data_pred["new_diff"][i])
+        test_data_pred["diff_sum"][i] = sum(a)
+        a=[]
+
+
+#rmfovm
+
+
+test_data_pred["index"] = test_data_pred.index
+
+buy_index =[]
+sell_index = []
+
+
+
+
+for i in range(len(test_data_pred)):
+    if test_data_pred["position"][i] == "buy":
+        buy_index.append(test_data_pred['index'][i])
+    elif test_data_pred['position'][i] == "sell" :       
+        sell_index.append(test_data_pred['index'][i])
+
+len(sell_index)
+
+
+
+#win rate
+
+win_rate_count = 0
+
+for i in range(len(test_data_pred)): 
+    if test_data_pred["diff_sum"][i] > 0:
+        win_rate_count +=1        
+    
+
+win_rate_count / len(sell_index)
+
+
+
+#payoff_rate
+gain_list = []
+loss_list = []
+all_list = []
+
+for i in range(len(test_data_pred)):
+    if test_data_pred["diff_sum"][i] > 0:
+        gain_list.append(test_data_pred["diff_sum"][i])
+        all_list.append(test_data_pred["diff_sum"][i])
+    elif test_data_pred["diff_sum"][i] <0:
+        loss_list.append(test_data_pred["diff_sum"][i])
+        all_list.append(test_data_pred["diff_sum"][i])
+        
+np.mean(loss_list) / np.mean(gain_list)
+
+
+#profit factor
+
+sum(loss_list) / sum(gain_list)
+
+#average gain & loss
+np.mean(gain_list)
+np.mean(loss_list)
+
+#총손실
+sum(loss_list)
+
+#총수익
+sum(gain_list)
+
+
+#수익률 붙이기
+
+
+test_data_rtn = test_close.pct_change() * 100
+len(test_data_rtn)
+
+test_close_rtn = test_data_rtn[2:].reset_index()["Close"]
+
+
+test_data_pred["rtn"] = test_close_rtn 
+
+
+
+
+
+test_data_pred["new_rtn"] = 0.0
+
+
+
+
+for i in range(len(test_data_pred)):
+    if test_data_pred["position"][i] == "buy" or test_data_pred["position"][i] == "no action" :
+        test_data_pred["new_rtn"][i] = 0
+    else : 
+        test_data_pred["new_rtn"][i] = test_data_pred['rtn'][i] 
+         
+        
+test_data_pred["new_rtn"].sum()
+
+
+#지표들
+print("거래횟수 : ", len(sell_index))
+print("winning ratio :", win_rate_count / len(sell_index))
+print("평균 수익 :", np.mean(gain_list))
+print("평균 손실 :", np.mean(loss_list))
+print("payoff ratio :", np.mean(loss_list) / np.mean(gain_list))
+print("총수익:", sum(gain_list))
+print("총손실:", sum(loss_list))
+print("profit factor:", sum(loss_list) / sum(gain_list))
+
+
+
+
+
+plt.plot(test_data_pred["Close"])
+plt.scatter(buy_index, test_data_pred["Close"][buy_index], c='red', marker='o', alpha=.5, label = "buy")
+plt.scatter(sell_index, test_data_pred["Close"][sell_index], c='green', marker='s', alpha=.5, label = "sell")
+plt.legend()
+
+
+
+
+############
+
+#pred
+len(y_pred)
+
+test_data_pred = test_data_drop[["Close", "rtn"]]
+
+test_data_pred['label'] = y_pred_dt[1:]
 
 test_data_pred['position'] = None
 
