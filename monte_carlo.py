@@ -28,7 +28,7 @@ tf.random.set_seed(seed)
 
 #삼성데이터 
 #train 데이터 (2016~2020.12)
-train = fdr.DataReader(symbol='033780', start='2015', end='2021')
+train = fdr.DataReader(symbol='005930', start='2015', end='2021')
 
 #실제 데이터 (로그 수익률 확인용 (2015.12.20~))
 train_real = train[247:]
@@ -84,9 +84,6 @@ def new_data(train_real):
     
     return data  
 
-
-
-
 #라벨링 리스트 생성 함수(input : (data, 만들 행 갯수))
 def label_list(data, num):
     data_df = pd.DataFrame(data, columns = ["data"])
@@ -103,6 +100,8 @@ def label_list(data, num):
     
 
     return label_shift_list
+
+
 
 
 #기술지표 생성함수(input : (data,  만들 행 갯수,time(25)))
@@ -145,6 +144,8 @@ def tal(data, num, time):
     train_data = train_data.reset_index(drop=True)
     
     return train_data
+
+
 
 
 
@@ -617,6 +618,54 @@ for i in kospi_200_list:
         print("종목티커 : " , i , "생성개수 : " ,j )
                                               
 #여기까지---------------------
+
+
+for i in kospi_200_list:
+    train = fdr.DataReader(symbol = i, start='2015', end='2021')
+    train_real = train[159:]
+    
+    df = tal(np.array(train_real["Close"], dtype=np.float64), len(train_real), 88)
+    
+    
+    X_train = df.drop(["label"], axis = 1 ) #학습데이터
+    y_train = df["label"] #정답라벨
+    X_test = df.drop(['label'], axis=1) #test데이터
+    y_test = df["label"]
+    
+    #로지스틱
+    y_pred_lg = logistic(X_train, y_train, X_test, y_test)
+            
+    
+    #DT
+    y_pred_dt = DT(X_train, y_train, X_test, y_test)
+
+    #rf
+    y_pred_rf = RF(X_train, y_train, X_test, y_test)
+    
+    
+    #xgboost
+    y_pred_xg = Xgboost(X_train, y_train, X_test, y_test)
+    
+    
+    trade_count_lg, winning_ratio_lg, mean_gain_lg , mean_loss_lg, payoff_ratio_lg , sum_gain_lg , sum_loss_lg , profit_factor_lg = pred(test_data_drop, y_pred_lg)
+    trade_count_dt, winning_ratio_dt, mean_gain_dt , mean_loss_dt, payoff_ratio_dt , sum_gain_dt , sum_loss_dt , profit_factor_dt = pred(test_data_drop, y_pred_dt)
+    trade_count_rf, winning_ratio_rf, mean_gain_rf , mean_loss_rf, payoff_ratio_rf , sum_gain_rf , sum_loss_rf , profit_factor_rf = pred(test_data_drop, y_pred_rf)
+    trade_count_xg, winning_ratio_xg, mean_gain_xg , mean_loss_xg, payoff_ratio_xg , sum_gain_xg , sum_loss_xg , profit_factor_xg = pred(test_data_drop, y_pred_xg)
+    
+    result_list = []
+    
+    result_list.append([i, j,"lg", trade_count_lg, winning_ratio_lg, mean_gain_lg , mean_loss_lg, payoff_ratio_lg , sum_gain_lg , sum_loss_lg , profit_factor_lg])
+    result_list.append([i, j,"dt", trade_count_dt, winning_ratio_dt, mean_gain_dt , mean_loss_dt, payoff_ratio_dt , sum_gain_dt , sum_loss_dt , profit_factor_dt])
+    result_list.append([i, j,"rf", trade_count_rf, winning_ratio_rf, mean_gain_rf , mean_loss_rf, payoff_ratio_rf , sum_gain_rf , sum_loss_rf , profit_factor_rf])
+    result_list.append([i, j,"xg", trade_count_xg, winning_ratio_xg, mean_gain_xg , mean_loss_xg, payoff_ratio_xg , sum_gain_xg , sum_loss_xg , profit_factor_xg])
+    
+    df=pd.DataFrame(result_list ,columns=["id", "count","model", "trade_count", "winning_ratio", "mean_gain", "mean_loss", "payoff_ratio" , "sum_gain" , "sum_loss" , "profit_factor"])
+    
+    result_df = pd.concat([result_df, df])
+    
+    print("종목티커 : " , i , "생성개수 : " ,j )
+
+
 
 
 
