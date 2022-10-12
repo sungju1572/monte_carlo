@@ -560,6 +560,8 @@ for i in kospi_200_list:
     train = fdr.DataReader(symbol= i, start='2015', end='2021')
     train_real = train[247:]
     
+    test = fdr.DataReader(symbol=i, start='2020', end='2022')
+    test = test[150:]
 
     test_data = make_test(test)
 
@@ -619,18 +621,29 @@ for i in kospi_200_list:
                                               
 #여기까지---------------------
 
+#실제 데이터 머신러닝 적용
+result_df_real = pd.DataFrame(columns=["id","model", "trade_count", "winning_ratio", "mean_gain", "mean_loss", "payoff_ratio" , "sum_gain" , "sum_loss" , "profit_factor"])
+
 
 for i in kospi_200_list:
     train = fdr.DataReader(symbol = i, start='2015', end='2021')
     train_real = train[159:]
+
+    test = fdr.DataReader(symbol=i, start='2020', end='2022')
+    test = test[150:]
+
+    test_data = make_test(test)
+
     
     df = tal(np.array(train_real["Close"], dtype=np.float64), len(train_real), 88)
     
     
+    test_data = make_test(test)  
+    
     X_train = df.drop(["label"], axis = 1 ) #학습데이터
     y_train = df["label"] #정답라벨
-    X_test = df.drop(['label'], axis=1) #test데이터
-    y_test = df["label"]
+    X_test = test_data.drop(['label'], axis=1) #test데이터
+    y_test = test_data["label"]
     
     #로지스틱
     y_pred_lg = logistic(X_train, y_train, X_test, y_test)
@@ -654,19 +667,19 @@ for i in kospi_200_list:
     
     result_list = []
     
-    result_list.append([i, j,"lg", trade_count_lg, winning_ratio_lg, mean_gain_lg , mean_loss_lg, payoff_ratio_lg , sum_gain_lg , sum_loss_lg , profit_factor_lg])
-    result_list.append([i, j,"dt", trade_count_dt, winning_ratio_dt, mean_gain_dt , mean_loss_dt, payoff_ratio_dt , sum_gain_dt , sum_loss_dt , profit_factor_dt])
-    result_list.append([i, j,"rf", trade_count_rf, winning_ratio_rf, mean_gain_rf , mean_loss_rf, payoff_ratio_rf , sum_gain_rf , sum_loss_rf , profit_factor_rf])
-    result_list.append([i, j,"xg", trade_count_xg, winning_ratio_xg, mean_gain_xg , mean_loss_xg, payoff_ratio_xg , sum_gain_xg , sum_loss_xg , profit_factor_xg])
+    result_list.append([i,"lg", trade_count_lg, winning_ratio_lg, mean_gain_lg , mean_loss_lg, payoff_ratio_lg , sum_gain_lg , sum_loss_lg , profit_factor_lg])
+    result_list.append([i,"dt", trade_count_dt, winning_ratio_dt, mean_gain_dt , mean_loss_dt, payoff_ratio_dt , sum_gain_dt , sum_loss_dt , profit_factor_dt])
+    result_list.append([i,"rf", trade_count_rf, winning_ratio_rf, mean_gain_rf , mean_loss_rf, payoff_ratio_rf , sum_gain_rf , sum_loss_rf , profit_factor_rf])
+    result_list.append([i,"xg", trade_count_xg, winning_ratio_xg, mean_gain_xg , mean_loss_xg, payoff_ratio_xg , sum_gain_xg , sum_loss_xg , profit_factor_xg])
     
-    df=pd.DataFrame(result_list ,columns=["id", "count","model", "trade_count", "winning_ratio", "mean_gain", "mean_loss", "payoff_ratio" , "sum_gain" , "sum_loss" , "profit_factor"])
+    df_total=pd.DataFrame(result_list ,columns=["id", "model", "trade_count", "winning_ratio", "mean_gain", "mean_loss", "payoff_ratio" , "sum_gain" , "sum_loss" , "profit_factor"])
     
-    result_df = pd.concat([result_df, df])
+    result_df_real  = pd.concat([result_df_real , df_total])
     
-    print("종목티커 : " , i , "생성개수 : " ,j )
+    print("종목티커 : " , i )
 
 
-
+result_df_real.to_csv("real_data.csv")
 
 
 #real_data(test_data구현 코드 미완성)
