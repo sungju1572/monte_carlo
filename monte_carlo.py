@@ -295,13 +295,23 @@ def Xgboost(X_train, y_train, X_test, y_test):
 
 
 #예측값 지표들 추출 (test_data_drop 부분 함수 아직 미완성)
-def pred(test_data_drop, y_pred):
+def pred(test_close, y_pred):
     #pred
     len(y_pred)
 
-    test_data_pred = test_data_drop[["Close", "rtn"]]
+    test_data_pred = pd.DataFrame(test_close,columns=['Close'])
+    test_data_pred = test_data_pred.reset_index(drop=True)
+    
+    test_data_rtn = test_data_pred['Close'].pct_change() * 100
 
-    test_data_pred['label'] = y_pred[1:]
+
+    test_data_pred["rtn"] = test_data_rtn  
+
+    test_data_pred = test_data_pred[3:].dropna().reset_index()
+
+    test_data_pred['label'] = y_pred
+
+
 
     test_data_pred['position'] = None
 
@@ -319,6 +329,8 @@ def pred(test_data_drop, y_pred):
             except:
                 pass
 
+
+    test_data_pred['position'].iloc[-1] ="sell"
 
     if test_data_pred['position'][0] == None:
         if test_data_pred['label'][0] ==   1:
@@ -501,9 +513,7 @@ def pred(test_data_drop, y_pred):
 
 
 #plot 그려보기
-
-
-for i in range(100):
+for i in range(10):
     data = new_data(train_real)
     plt.plot(data[:250])
     plt.legend()
@@ -551,19 +561,23 @@ b1 = tal(data1, 275, 25)
 
 
 #데이터 자동화
-kospi_200_list = ["005930","000660","207940","051910","006400","035420","005380","035720","000270","068270","028260","005490","105560","012330","096770","055550","034730","066570","015760","034020","003550","003670","032830","011200","086790","017670","051900","010130","033780"]
+kospi_200_list = ["005930","000660","051910","006400","035420","005380","035720","000270","068270","028260","005490","105560","012330","096770","055550","034730","066570","015760","034020","003550","003670","032830","011200","086790","017670","051900","010130","033780","010950","003490"]
 count_list = [20,50,100,150,200,250]
 
 result_df = pd.DataFrame(columns=["id", "count","model", "trade_count", "winning_ratio", "mean_gain", "mean_loss", "payoff_ratio" , "sum_gain" , "sum_loss" , "profit_factor"])
+
 
 for i in kospi_200_list:
     train = fdr.DataReader(symbol= i, start='2015', end='2021')
     train_real = train[247:]
     
-    test = fdr.DataReader(symbol=i, start='2020', end='2022')
+    test = fdr.DataReader(symbol= i , start='2020', end='2022')
     test = test[150:]
 
     test_data = make_test(test)
+
+    test_close = test["Close"]
+    test_close  = test_close [97:]
 
     
     for j in count_list:
@@ -601,10 +615,10 @@ for i in kospi_200_list:
         y_pred_xg = Xgboost(X_train, y_train, X_test, y_test)
         
         
-        trade_count_lg, winning_ratio_lg, mean_gain_lg , mean_loss_lg, payoff_ratio_lg , sum_gain_lg , sum_loss_lg , profit_factor_lg = pred(test_data_drop, y_pred_lg)
-        trade_count_dt, winning_ratio_dt, mean_gain_dt , mean_loss_dt, payoff_ratio_dt , sum_gain_dt , sum_loss_dt , profit_factor_dt = pred(test_data_drop, y_pred_dt)
-        trade_count_rf, winning_ratio_rf, mean_gain_rf , mean_loss_rf, payoff_ratio_rf , sum_gain_rf , sum_loss_rf , profit_factor_rf = pred(test_data_drop, y_pred_rf)
-        trade_count_xg, winning_ratio_xg, mean_gain_xg , mean_loss_xg, payoff_ratio_xg , sum_gain_xg , sum_loss_xg , profit_factor_xg = pred(test_data_drop, y_pred_xg)
+        trade_count_lg, winning_ratio_lg, mean_gain_lg , mean_loss_lg, payoff_ratio_lg , sum_gain_lg , sum_loss_lg , profit_factor_lg = pred(test_close, y_pred_lg)
+        trade_count_dt, winning_ratio_dt, mean_gain_dt , mean_loss_dt, payoff_ratio_dt , sum_gain_dt , sum_loss_dt , profit_factor_dt = pred(test_close, y_pred_dt)
+        trade_count_rf, winning_ratio_rf, mean_gain_rf , mean_loss_rf, payoff_ratio_rf , sum_gain_rf , sum_loss_rf , profit_factor_rf = pred(test_close, y_pred_rf)
+        trade_count_xg, winning_ratio_xg, mean_gain_xg , mean_loss_xg, payoff_ratio_xg , sum_gain_xg , sum_loss_xg , profit_factor_xg = pred(test_close, y_pred_xg)
         
         result_list = []
         
@@ -619,6 +633,8 @@ for i in kospi_200_list:
         
         print("종목티커 : " , i , "생성개수 : " ,j )
                                               
+        
+result_df.to_csv("생성데이터_kospi30.csv")
 #여기까지---------------------
 
 #실제 데이터 머신러닝 적용
@@ -633,7 +649,6 @@ for i in kospi_200_list:
     test = test[150:]
 
     test_data = make_test(test)
-
     
     df = tal(np.array(train_real["Close"], dtype=np.float64), len(train_real), 88)
     
@@ -660,6 +675,8 @@ for i in kospi_200_list:
     y_pred_xg = Xgboost(X_train, y_train, X_test, y_test)
     
     
+    
+    
     trade_count_lg, winning_ratio_lg, mean_gain_lg , mean_loss_lg, payoff_ratio_lg , sum_gain_lg , sum_loss_lg , profit_factor_lg = pred(test_data_drop, y_pred_lg)
     trade_count_dt, winning_ratio_dt, mean_gain_dt , mean_loss_dt, payoff_ratio_dt , sum_gain_dt , sum_loss_dt , profit_factor_dt = pred(test_data_drop, y_pred_dt)
     trade_count_rf, winning_ratio_rf, mean_gain_rf , mean_loss_rf, payoff_ratio_rf , sum_gain_rf , sum_loss_rf , profit_factor_rf = pred(test_data_drop, y_pred_rf)
@@ -679,7 +696,17 @@ for i in kospi_200_list:
     print("종목티커 : " , i )
 
 
-result_df_real.to_csv("real_data.csv")
+result_df_real.to_csv("실제데이터_kospi30.csv")
+
+
+
+#상장일 개수 확인
+len(train_real)
+for i in kospi_200_list:
+    train = fdr.DataReader(symbol = i, start='2015', end='2021')
+    train_real = train[159:]
+    if len(train_real) != 1316:
+        print(i)
 
 
 #real_data(test_data구현 코드 미완성)
@@ -695,6 +722,9 @@ for j in kospi_200_list:
 
     test_data = make_test(test)    
 
+
+    test_close = test["Close"]
+    test_close  = test_close [97:]
 
 
     #buy_hold_real
@@ -1173,6 +1203,44 @@ test_data
 
 y_pred
 
+
+def make_test_data_drop(test_data, test):
+    #buy_hold_real
+    test_data["position"] = None
+
+    test_data_drop = test_data[['label', 'position']]
+
+
+
+    #라벨링
+    for i in range(0, len(test_data_drop)):
+            try:
+                if test_data_drop['label'][i]+test_data_drop['label'][i+1]==0:
+                    test_data_drop['position'][i+1]='no action'
+                elif test_data_drop['label'][i]+test_data_drop['label'][i+1]==2:
+                    test_data_drop['position'][i+1]='holding'
+                elif test_data_drop['label'][i] > test_data_drop['label'][i+1]:
+                    test_data_drop['position'][i+1]='sell'
+                else:
+                    test_data_drop['position'][i+1]='buy'
+            except:
+                pass
+
+
+
+    test_data_drop = test_data_drop.drop(index=[0])
+
+    test_data_drop  = test_data_drop.reset_index()
+
+    #종가 붙이기
+    len(test_data_drop)
+    len(test_close[2:])
+
+    test_close_1 = test_close[2:].reset_index()["Close"]
+
+
+    test_data_drop["Close"] = test_close_1
+    
 
 test_close = test["Close"]
 test_close  = test_close [99:]
