@@ -634,7 +634,7 @@ for i in kospi_200_list:
         print("종목티커 : " , i , "생성개수 : " ,j )
                                               
         
-result_df.to_csv("생성데이터_kospi30.csv")
+result_df.to_csv("생성데이터_kospi30_12.csv")
 #여기까지---------------------
 
 #실제 데이터 머신러닝 적용
@@ -652,7 +652,10 @@ for i in kospi_200_list:
     
     df = tal(np.array(train_real["Close"], dtype=np.float64), len(train_real), 88)
     
-    
+    test_close = test["Close"]
+    test_close  = test_close [97:]
+
+
     test_data = make_test(test)  
     
     X_train = df.drop(["label"], axis = 1 ) #학습데이터
@@ -677,10 +680,10 @@ for i in kospi_200_list:
     
     
     
-    trade_count_lg, winning_ratio_lg, mean_gain_lg , mean_loss_lg, payoff_ratio_lg , sum_gain_lg , sum_loss_lg , profit_factor_lg = pred(test_data_drop, y_pred_lg)
-    trade_count_dt, winning_ratio_dt, mean_gain_dt , mean_loss_dt, payoff_ratio_dt , sum_gain_dt , sum_loss_dt , profit_factor_dt = pred(test_data_drop, y_pred_dt)
-    trade_count_rf, winning_ratio_rf, mean_gain_rf , mean_loss_rf, payoff_ratio_rf , sum_gain_rf , sum_loss_rf , profit_factor_rf = pred(test_data_drop, y_pred_rf)
-    trade_count_xg, winning_ratio_xg, mean_gain_xg , mean_loss_xg, payoff_ratio_xg , sum_gain_xg , sum_loss_xg , profit_factor_xg = pred(test_data_drop, y_pred_xg)
+    trade_count_lg, winning_ratio_lg, mean_gain_lg , mean_loss_lg, payoff_ratio_lg , sum_gain_lg , sum_loss_lg , profit_factor_lg = pred(test_close, y_pred_lg)
+    trade_count_dt, winning_ratio_dt, mean_gain_dt , mean_loss_dt, payoff_ratio_dt , sum_gain_dt , sum_loss_dt , profit_factor_dt = pred(test_close, y_pred_dt)
+    trade_count_rf, winning_ratio_rf, mean_gain_rf , mean_loss_rf, payoff_ratio_rf , sum_gain_rf , sum_loss_rf , profit_factor_rf = pred(test_close, y_pred_rf)
+    trade_count_xg, winning_ratio_xg, mean_gain_xg , mean_loss_xg, payoff_ratio_xg , sum_gain_xg , sum_loss_xg , profit_factor_xg = pred(test_close, y_pred_xg)
     
     result_list = []
     
@@ -696,7 +699,7 @@ for i in kospi_200_list:
     print("종목티커 : " , i )
 
 
-result_df_real.to_csv("실제데이터_kospi30.csv")
+result_df_real.to_csv("실제데이터_kospi30_12.csv")
 
 
 
