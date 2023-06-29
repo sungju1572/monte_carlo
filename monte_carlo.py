@@ -642,10 +642,10 @@ result_df_real = pd.DataFrame(columns=["id","model", "trade_count", "winning_rat
 
 
 for i in kospi_200_list:
-    train = fdr.DataReader(symbol = i, start='2015', end='2021')
+    train = fdr.DataReader(symbol= i, start='2012', end='2020')
     train_real = train[159:]
 
-    test = fdr.DataReader(symbol=i, start='2020', end='2022')
+    test = fdr.DataReader(symbol= i ,start='2019', end='2023')
     test = test[150:]
 
     test_data = make_test(test)
@@ -656,7 +656,7 @@ for i in kospi_200_list:
     test_close  = test_close [97:]
 
 
-    test_data = make_test(test)  
+    #test_data = make_test(test)  
     
     X_train = df.drop(["label"], axis = 1 ) #학습데이터
     y_train = df["label"] #정답라벨
@@ -699,7 +699,7 @@ for i in kospi_200_list:
     print("종목티커 : " , i )
 
 
-result_df_real.to_csv("실제데이터_kospi30_12.csv")
+result_df_real.to_csv("실제데이터_kospi30_6_15.csv")
 
 
 
